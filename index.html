@@ -1415,35 +1415,48 @@ function adoptRemote(remote){
   if(m1||m2||m3) cloudSync();
   refreshAll(); setCloudStat('cloud');
 }
+async function doSync(){
+  try{
+    /* 保存前先看一眼云端：双端都有改动 → 冲突弹窗（后保存不再直接赢）；云端有新数据且本机没改 → 直接采用 */
+    const r=await fetchRemote();
+    if(r.err){ setCloudStat('err'); return; }
+    const j=syncJudge(r.remote);
+    if(j==='conflict'){ showConflictModal(r.remote); return; }
+    if(j==='pull'){ adoptRemote(r.remote); return; }
+    if(j==='same'){ setCloudStat('cloud'); return; }
+    let ok=false;
+    if(ghReady()){
+      ok=await ghPut();
+    }else{
+      const res=await fetch(apiURL('/api/state'),{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({data:store})});
+      ok=res.ok;
+    }
+    if(ok){
+      store.syncAt=store.updatedAt;   /* 记录同步游标：下次同步以此判断谁在同步之后改过 */
+      try{ localStorage.setItem(LS_KEY, JSON.stringify(store)); }catch(e){}
+      setCloudStat('cloud');
+    }
+    else setCloudStat('err');
+  }catch(e){ setCloudStat('err'); }
+}
 function cloudSync(){
   if(!cloudAvail()) return;
   clearTimeout(_syncTimer);
   /* GitHub 模式每次提交都是一个 commit，合并得久一点，避免刷出大量历史 */
-  _syncTimer=setTimeout(async()=>{
-    try{
-      /* 保存前先看一眼云端：双端都有改动 → 冲突弹窗（后保存不再直接赢）；云端有新数据且本机没改 → 直接采用 */
-      const r=await fetchRemote();
-      if(r.err){ setCloudStat('err'); return; }
-      const j=syncJudge(r.remote);
-      if(j==='conflict'){ showConflictModal(r.remote); return; }
-      if(j==='pull'){ adoptRemote(r.remote); return; }
-      if(j==='same'){ setCloudStat('cloud'); return; }
-      let ok=false;
-      if(ghReady()){
-        ok=await ghPut();
-      }else{
-        const res=await fetch(apiURL('/api/state'),{method:'POST',headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({data:store})});
-        ok=res.ok;
-      }
-      if(ok){
-        store.syncAt=store.updatedAt;   /* 记录同步游标：下次同步以此判断谁在同步之后改过 */
-        try{ localStorage.setItem(LS_KEY, JSON.stringify(store)); }catch(e){}
-        setCloudStat('cloud');
-      }
-      else setCloudStat('err');
-    }catch(e){ setCloudStat('err'); }
-  }, ghReady()?3000:600);
+  _syncTimer=setTimeout(doSync, ghReady()?2000:600);
+}
+/* 页面被隐藏 / 即将关闭时立刻补一次上传：防抖计时器会随页面销毁，不补就会丢掉刚改的最后一步 */
+async function flushPush(){
+  if(!cloudAvail()) return;
+  clearTimeout(_syncTimer);
+  if(+store.updatedAt <= +store.syncAt) return;          /* 没有待上传的改动 */
+  try{
+    const r=await fetchRemote();
+    if(r.err) return;
+    if(r.remote && (+r.remote.updatedAt||0) > (+store.syncAt||0)) return;   /* 别的设备先改过，别抢写 */
+    if(ghReady()) await ghPut();
+  }catch(e){}
 }
 function setCloudStat(s){
   const el=$('cloudStat'); if(!el) return;
@@ -1506,7 +1519,7 @@ let _ghSha=null;
 async function ghPut(){
   const c=ghCfg(); if(!c) return false;
   const put=async body=>{
-    const res=await fetch(ghApiUrl(c), {method:'PUT', headers:ghHeaders(c), body:JSON.stringify(body)});
+    const res=await fetch(ghApiUrl(c), {method:'PUT', headers:ghHeaders(c), body:JSON.stringify(body), keepalive:true});
     if(res.ok){ try{ const j=await res.json(); if(j&&j.content&&j.content.sha){ _ghSha=j.content.sha; body.sha=_ghSha; } }catch(e){} }
     return res;
   };
@@ -1549,7 +1562,8 @@ async function silentPull(){
 }
 function startAutoPull(){
   if(!ghReady()) return;
-  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) silentPull(); });
+  document.addEventListener('visibilitychange', ()=>{ if(document.hidden) flushPush(); else silentPull(); });
+  window.addEventListener('pagehide', ()=> flushPush());
   window.addEventListener('focus', ()=> silentPull());
   if(_autoTimer) clearInterval(_autoTimer);
   _autoTimer=setInterval(silentPull, 45000);
@@ -1970,7 +1984,7 @@ applyIncBarOpen();
 applyDepBarOpen();
 
 /* 版本标识：发布新版本时改这里，设置页底部可见，便于确认“是否已更新到最新页面” */
-const APP_VER='v56';
+const APP_VER='v57';
 function renderAppVer(){
   const el=$('appVer'); if(!el) return;
   const t=curYM(), y=Math.floor((t-1)/12), m=(t-1)%12+1;
