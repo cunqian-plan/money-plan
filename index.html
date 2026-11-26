@@ -285,6 +285,8 @@
   .edit-in{width:86px;flex:0 0 86px;border:0;border-bottom:1px dashed #cfdbe8;background:transparent;
     font-family:inherit;font-size:14px;font-weight:600;color:var(--ink);padding:3px 2px;text-align:right;border-radius:0}
   .edit-in:focus{outline:none;border-bottom:1px solid var(--primary);background:#f4f9ff}
+  /* 多设备同步：输入框要放得下用户名/令牌，占满剩余宽度 */
+  #syncBody .edit-in{flex:1 1 auto;width:auto;min-width:0;text-align:left;font-size:13px;padding:3px 2px;letter-spacing:0}
   .edit-un{font-size:12px;color:var(--ink-3);flex:0 0 auto}
   /* 生日：年/月/日三个下拉按比例分配宽度，窄屏也不溢出 */
   .row-bday{gap:5px}
@@ -854,6 +856,28 @@
         <input type="file" id="fileImport" accept=".json" style="display:none">
       </div>
     </div>
+    <div class="card" id="cardSync">
+      <div class="card-h" id="syncHead" style="cursor:pointer;-webkit-tap-highlight-color:transparent" title="点击展开/折叠">
+        <div class="card-t">多设备同步</div>
+        <div class="card-s" style="display:flex;align-items:center;gap:6px"><span id="ghSub">未连接</span><i id="ghCaret" style="font-style:normal;font-size:10px;line-height:1;color:var(--ink-3);display:inline-block;transition:transform .2s;transform:rotate(0deg)">▾</i></div>
+      </div>
+      <div id="syncBody">
+        <div class="mp-hint" style="margin-bottom:10px">把数据存进你自己的 GitHub 私有仓库。换手机、换电脑打开同一网址，填一次配置就能自动同步回来。<b>令牌只存在这台设备上</b>，随时可在 GitHub 撤销。</div>
+        <div class="edit-row"><span class="edit-lb">用户名</span><input id="ghOwner" class="edit-in" placeholder="github 用户名" autocapitalize="off" autocorrect="off" spellcheck="false"></div>
+        <div class="edit-row"><span class="edit-lb">仓库名</span><input id="ghRepo" class="edit-in" placeholder="money-plan-data" autocapitalize="off" autocorrect="off" spellcheck="false"></div>
+        <div class="edit-row"><span class="edit-lb">令牌</span><input id="ghToken" class="edit-in" type="password" placeholder="github_pat_…" autocapitalize="off" autocorrect="off" spellcheck="false"></div>
+        <div class="edit-row"><span class="edit-lb">文件名</span><input id="ghPath" class="edit-in" placeholder="data.json" autocapitalize="off" autocorrect="off" spellcheck="false"></div>
+        <div class="mgmt-row" style="margin-top:12px">
+          <button class="btn-mini primary" id="ghSave">保存并连接</button>
+          <button class="btn-mini" id="ghPushNow">立即上传</button>
+        </div>
+        <div class="mgmt-row" style="margin-top:8px">
+          <button class="btn-mini" id="ghPullNow">从云端拉取</button>
+          <button class="btn-mini" id="ghOff" style="color:var(--red)">断开</button>
+        </div>
+        <div id="ghMsg" style="font-size:11px;color:var(--ink-3);margin-top:10px;line-height:1.7">未连接：数据只存在本机，换设备看不到。</div>
+      </div>
+    </div>
 
   
     <div id="appVer" style="text-align:center;font-size:11px;color:var(--ink-3);padding:14px 0 4px">网页版本 v53 · 当前期 2026.11</div>
@@ -1352,6 +1376,7 @@ let _syncTimer=null;
    保存/拉取时若发现本机与云端在上次同步之后都有改动（后保存赢会吞掉一端的改动），
    不再自动覆盖，而是弹窗让用户选择保留哪一份 */
 function fetchRemote(){
+  if(ghReady()) return ghFetch();          /* GitHub 同步模式 */
   return fetch(apiURL('/api/state'),{cache:'no-store'}).then(res=>{
     if(!res.ok) return {err:true};
     return res.json().then(d=>({remote:(d&&d.data&&typeof d.data==='object')?d.data:null}))
@@ -1389,8 +1414,9 @@ function adoptRemote(remote){
   refreshAll(); setCloudStat('cloud');
 }
 function cloudSync(){
-  if(!CLOUD_ON) return;
+  if(!cloudAvail()) return;
   clearTimeout(_syncTimer);
+  /* GitHub 模式每次提交都是一个 commit，合并得久一点，避免刷出大量历史 */
   _syncTimer=setTimeout(async()=>{
     try{
       /* 保存前先看一眼云端：双端都有改动 → 冲突弹窗（后保存不再直接赢）；云端有新数据且本机没改 → 直接采用 */
@@ -1400,22 +1426,118 @@ function cloudSync(){
       if(j==='conflict'){ showConflictModal(r.remote); return; }
       if(j==='pull'){ adoptRemote(r.remote); return; }
       if(j==='same'){ setCloudStat('cloud'); return; }
-      const res=await fetch(apiURL('/api/state'),{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({data:store})});
-      if(res.ok){
+      let ok=false;
+      if(ghReady()){
+        ok=await ghPut();
+      }else{
+        const res=await fetch(apiURL('/api/state'),{method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({data:store})});
+        ok=res.ok;
+      }
+      if(ok){
         store.syncAt=store.updatedAt;   /* 记录同步游标：下次同步以此判断谁在同步之后改过 */
         try{ localStorage.setItem(LS_KEY, JSON.stringify(store)); }catch(e){}
         setCloudStat('cloud');
       }
       else setCloudStat('err');
     }catch(e){ setCloudStat('err'); }
-  },600);
+  }, ghReady()?8000:600);
 }
 function setCloudStat(s){
   const el=$('cloudStat'); if(!el) return;
-  el.innerHTML = s==='cloud' ? '<span style="color:var(--mint)">● 云端已备份</span>'
-    : s==='err' ? '<span style="color:var(--ink-3)">● 本地模式</span>'
+  el.innerHTML = s==='cloud' ? ('<span style="color:var(--mint)">● '+(ghReady()?'已同步到云端':'云端已备份')+'</span>')
+    : s==='err' ? ('<span style="color:var(--ink-3)">● '+(ghReady()?'等待重试（已存本机）':'本地模式')+'</span>')
     : '<span style="color:var(--ink-3)">● 检查云端中…</span>';
+  ghSyncStat(s);
+}
+
+/* ================= 多设备同步（GitHub 私有仓库当数据库） =================
+   前端直接调用 GitHub Contents API：GET 取 data.json、PUT 写回，每次同步是一个 commit，
+   天然带版本历史，删错了也能在 GitHub 网页上找回。令牌只存本机 localStorage。 */
+const GH_KEY='depositPlan.gh';
+function ghCfg(){
+  try{
+    const o=JSON.parse(localStorage.getItem(GH_KEY)||'null');
+    if(!o || !o.owner || !o.repo || !o.token) return null;
+    return { owner:String(o.owner).trim(), repo:String(o.repo).trim(),
+             token:String(o.token).trim(),
+             path:(String(o.path||'data.json').trim().replace(/^\/+/,'')||'data.json') };
+  }catch(e){ return null; }
+}
+function ghReady(){ return !!ghCfg(); }
+function cloudAvail(){ return CLOUD_ON || ghReady(); }
+function ghApiUrl(c){
+  const p=c.path.split('/').map(encodeURIComponent).join('/');
+  return 'https://api.github.com/repos/'+encodeURIComponent(c.owner)+'/'+encodeURIComponent(c.repo)+'/contents/'+p;
+}
+function ghHeaders(c){
+  return { 'Authorization':'Bearer '+c.token, 'Accept':'application/vnd.github+json',
+           'X-GitHub-Api-Version':'2022-11-28', 'Content-Type':'application/json' };
+}
+function b64enc(str){
+  const b=new TextEncoder().encode(str); let s='';
+  for(let i=0;i<b.length;i+=8192) s+=String.fromCharCode.apply(null,b.subarray(i,i+8192));
+  return btoa(s);
+}
+function b64dec(b64){
+  const bin=atob(String(b64).replace(/\s+/g,''));
+  const a=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) a[i]=bin.charCodeAt(i);
+  return new TextDecoder().decode(a);
+}
+/* 读云端：{remote}(null=文件还不存在) 或 {err:true} */
+async function ghFetch(){
+  const c=ghCfg(); if(!c) return {remote:null};
+  try{
+    const res=await fetch(ghApiUrl(c), {headers:ghHeaders(c), cache:'no-store'});
+    if(res.status===404) return {remote:null};
+    if(!res.ok) return {err:true, code:res.status};
+    const j=await res.json();
+    if(!j || !j.content) return {remote:null};
+    const d=JSON.parse(b64dec(j.content));
+    return {remote:(d && typeof d==='object')?d:null};
+  }catch(e){ return {err:true}; }
+}
+/* 写云端：剔除撤销栈（体积大且无需跨设备），成功返回 true */
+async function ghPut(){
+  const c=ghCfg(); if(!c) return false;
+  try{
+    let sha=null;
+    try{
+      const head=await fetch(ghApiUrl(c), {headers:ghHeaders(c), cache:'no-store'});
+      if(head.ok){ const h=await head.json(); sha=h&&h.sha?h.sha:null; }
+    }catch(e){}
+    const payload=JSON.stringify(store, (k,v)=> (k==='undo'? undefined : v));
+    const body={ message:'sync '+new Date().toISOString().slice(0,19).replace('T',' '), content:b64enc(payload) };
+    if(sha) body.sha=sha;
+    const res=await fetch(ghApiUrl(c), {method:'PUT', headers:ghHeaders(c), body:JSON.stringify(body)});
+    if(res.ok) return true;
+    if(res.status===409) return false;      /* 别的设备刚提交过，下一轮重试 */
+    return false;
+  }catch(e){ return false; }
+}
+/* 同步状态文案：卡片头部小字 + 卡片内提示 */
+function ghSyncStat(s){
+  const sub=$('ghSub');
+  if(sub){
+    if(!ghReady()) sub.textContent='未连接';
+    else if(s==='cloud') sub.textContent='已同步';
+    else if(s==='err') sub.textContent='等待重试';
+    else if(s==='idle') sub.textContent='已连接';
+    else sub.textContent='同步中…';
+  }
+  const msg=$('ghMsg');
+  if(!msg) return;
+  if(!ghReady()){
+    msg.innerHTML='未连接：数据只存在本机，换设备看不到。';
+    return;
+  }
+  const c=ghCfg();
+  const where=c.owner+'/'+c.repo+' · '+c.path;
+  if(s==='cloud') msg.innerHTML='<span style="color:var(--mint)">● 已同步</span> · '+where+'<br>两台设备都改过时会弹窗让你选保留哪一份。';
+  else if(s==='err') msg.innerHTML='<span style="color:#b07d10">● 上传失败，稍后自动重试</span><br>数据已安全存在本机，不影响使用。常见原因：网络不通、令牌过期、权限不足。';
+  else if(s==='idle') msg.innerHTML='<span style="color:var(--ink-3)">● 已连接</span> · '+where+'<br>改动停下 8 秒后自动上传，每次上传是一次提交，可在 GitHub 上查看历史。';
+  else msg.innerHTML='<span style="color:var(--ink-3)">● 正在同步…</span> · '+where;
 }
 /* ---------- 同步冲突弹窗 ---------- */
 let _cfRemote=null, _cfOpen=false;
@@ -1455,7 +1577,7 @@ document.getElementById('cfLocal').addEventListener('click',async()=>{
   }catch(e){ setCloudStat('err'); toast('覆盖云端失败，请稍后再试'); }
 });
 async function cloudPull(){
-  if(!CLOUD_ON) return;
+  if(!cloudAvail()) return;
   try{
     const r=await fetchRemote();
     if(r.err){ setCloudStat('err'); maybeSnapCheck(); return; }
@@ -1810,7 +1932,7 @@ applyIncBarOpen();
 applyDepBarOpen();
 
 /* 版本标识：发布新版本时改这里，设置页底部可见，便于确认“是否已更新到最新页面” */
-const APP_VER='v53';
+const APP_VER='v54';
 function renderAppVer(){
   const el=$('appVer'); if(!el) return;
   const t=curYM(), y=Math.floor((t-1)/12), m=(t-1)%12+1;
@@ -3133,7 +3255,8 @@ async function restoreSnap(name){
   }catch(e){ toast('读取存档失败，请稍后再试'); }
 }
 $('btnSnapList').addEventListener('click',()=>{
-  if(!CLOUD_ON){ toast('本地打开时无云端存档'); return; }
+  if(!cloudAvail()){ toast('未连接云端，暂无云端存档'); return; }
+  if(ghReady()){ toast('GitHub 同步模式不带云端存档；要看历史版本，去仓库的提交记录里找 data.json 的旧版'); return; }
   $('snapModal').classList.add('on'); loadSnaps();
 });
 /* 撤销上一步：恢复最近一次保存前的数据快照（不影响分钟级云端存档） */
@@ -4485,9 +4608,83 @@ $('bulkExtra').addEventListener('blur',()=>{ renderExtraRate(); saveStore(); });
 window.addEventListener('resize',()=>{ sizeTables(); });
 window.addEventListener('orientationchange',()=>setTimeout(sizeTables,200));
 
+/* ---------- 多设备同步卡片：折叠、配置回填、按钮 ---------- */
+(function(){
+  const head=$('syncHead'), body=$('syncBody'), caret=$('ghCaret');
+  if(!head||!body) return;
+  head.addEventListener('click',()=>{
+    const open = body.style.display!=='none';
+    body.style.display = open?'none':'block';
+    if(caret) caret.style.transform = open?'rotate(-90deg)':'rotate(0deg)';
+  });
+  const c0=ghCfg();
+  if(c0){ $('ghOwner').value=c0.owner; $('ghRepo').value=c0.repo; $('ghToken').value=c0.token; $('ghPath').value=c0.path; }
+  else{ $('ghPath').value='data.json'; }
+  const say=html=>{ const m=$('ghMsg'); if(m) m.innerHTML=html; };
+
+  $('ghSave').addEventListener('click',async()=>{
+    const o={ owner:$('ghOwner').value.trim(), repo:$('ghRepo').value.trim(),
+              token:$('ghToken').value.trim(), path:($('ghPath').value.trim()||'data.json') };
+    if(!o.owner||!o.repo||!o.token){ say('<span style="color:var(--red)">用户名、仓库名、令牌三项都要填</span>'); return; }
+    localStorage.setItem(GH_KEY, JSON.stringify(o));
+    say('<span style="color:var(--ink-3)">● 正在连接 GitHub…</span>');
+    const r=await fetchRemote();
+    if(r.err){
+      say('<span style="color:var(--red)">连接失败</span>：检查用户名、仓库名、令牌是否填对；令牌要对该仓库有 Contents 读写权限，仓库必须是 Private 或 Public 但存在。');
+      ghSyncStat('err'); return;
+    }
+    const j=syncJudge(r.remote);
+    if(j==='conflict'){ showConflictModal(r.remote); say('两台设备都改过数据，请在上方弹窗里选择保留哪一份。'); return; }
+    if(j==='pull'){ adoptRemote(r.remote); say('<span style="color:var(--mint)">● 已连接，云端数据已拉回本机</span>'); return; }
+    if(j==='push'){
+      const ok=await ghPut();
+      if(ok){ store.syncAt=store.updatedAt; try{ localStorage.setItem(LS_KEY,JSON.stringify(store)); }catch(e){}
+              setCloudStat('cloud'); say('<span style="color:var(--mint)">● 已连接，本机数据已上传到仓库</span>'); }
+      else{ ghSyncStat('err'); say('<span style="color:#b07d10">已连接，但上传失败</span>：检查网络，或令牌是否具备 Contents: Read and write 权限。'); }
+      return;
+    }
+    setCloudStat('cloud');
+  });
+
+  $('ghPushNow').addEventListener('click',async()=>{
+    if(!ghReady()){ say('先填好配置并点「保存并连接」。'); return; }
+    say('<span style="color:var(--ink-3)">● 正在上传…</span>');
+    const ok=await ghPut();
+    if(ok){ store.syncAt=store.updatedAt; try{ localStorage.setItem(LS_KEY,JSON.stringify(store)); }catch(e){}
+            setCloudStat('cloud'); say('<span style="color:var(--mint)">● 上传成功</span>：其他设备下次打开就能看到。'); }
+    else{ ghSyncStat('err'); say('<span style="color:#b07d10">上传失败</span>：可能是网络问题或令牌权限不足。'); }
+  });
+
+  $('ghPullNow').addEventListener('click',async()=>{
+    if(!ghReady()){ say('先填好配置并点「保存并连接」。'); return; }
+    if(!confirm('从云端拉取会用仓库里的数据覆盖本机当前数据。\n本机现有内容会先留在「历史撤销」里，之后可以撤销。继续吗？')) return;
+    say('<span style="color:var(--ink-3)">● 正在拉取…</span>');
+    const r=await fetchRemote();
+    if(r.err){ say('<span style="color:#b07d10">拉取失败</span>：检查网络或令牌。'); return; }
+    if(!r.remote){ say('云端还没有数据文件，先点「立即上传」把本机数据传上去。'); return; }
+    adoptRemote(r.remote);
+    say('<span style="color:var(--mint)">● 已用云端数据覆盖本机</span>');
+  });
+
+  $('ghOff').addEventListener('click',()=>{
+    if(!ghReady()){ say('当前没有连接。'); return; }
+    if(!confirm('断开后本机数据仍然保留，只是不再自动同步；仓库里的数据文件不会删除。继续吗？')) return;
+    localStorage.removeItem(GH_KEY);
+    $('ghToken').value='';
+    ghSyncStat('idle'); setCloudStat('err');
+    say('已断开。数据只存在本机。');
+  });
+
+  if(ghReady()){                       /* 已配置过：默认折叠起来，少占地方 */
+    body.style.display='none';
+    if(caret) caret.style.transform='rotate(-90deg)';
+  }
+  ghSyncStat('idle');
+})();
+
 refreshAll();
 cloudPull();
-if(!CLOUD_ON) maybeSnapCheck();     /* 本地文件打开：没有云端可等，直接抓 */
+if(!cloudAvail()) maybeSnapCheck();     /* 完全没有云端时：不必等拉取，直接抓 */
 /* PWA：注册 Service Worker（仅 https/localhost 生效，file:// 打开时跳过） */
 if('serviceWorker' in navigator && location.protocol!=='file:'){
   window.addEventListener('load',()=>{
