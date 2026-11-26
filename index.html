@@ -1384,8 +1384,10 @@ function fetchRemote(){
   }).catch(()=>({err:true}));
 }
 function isEmptyStore(o){
-  return !o||(!Object.keys(o.edits||{}).length && !(o.deposits||[]).length
-    && !(o.added||[]).length && !Object.keys(o.prevEdits||{}).length);
+  if(!o) return true;
+  return !Object.keys(o.edits||{}).length && !(o.deposits||[]).length
+    && !(o.added||[]).length && !Object.keys(o.prevEdits||{}).length
+    && !(o.loans||[]).length;      /* 贷款表也是正式数据：只按单元格编辑判断会把「只有贷款」的账本误当空壳，导致整份被覆盖 */
 }
 /* 判定同步动作：push=推本机上去 pull=采用云端 same=两边一致 conflict=双端都有改动需弹窗 */
 function syncJudge(remote){
@@ -1932,7 +1934,7 @@ applyIncBarOpen();
 applyDepBarOpen();
 
 /* 版本标识：发布新版本时改这里，设置页底部可见，便于确认“是否已更新到最新页面” */
-const APP_VER='v54';
+const APP_VER='v55';
 function renderAppVer(){
   const el=$('appVer'); if(!el) return;
   const t=curYM(), y=Math.floor((t-1)/12), m=(t-1)%12+1;
@@ -4656,7 +4658,12 @@ window.addEventListener('orientationchange',()=>setTimeout(sizeTables,200));
   });
 
   $('ghPullNow').addEventListener('click',async()=>{
-    if(!ghReady()){ say('先填好配置并点「保存并连接」。'); return; }
+    if(!ghReady()){                       /* 纯拉取不必先「保存并连接」：把当前输入存成配置即可，避免误触发上传 */
+      const o={ owner:$('ghOwner').value.trim(), repo:$('ghRepo').value.trim(),
+                token:$('ghToken').value.trim(), path:($('ghPath').value.trim()||'data.json') };
+      if(!o.owner||!o.repo||!o.token){ say('<span style="color:var(--red)">先把用户名、仓库名、令牌填好</span>'); return; }
+      localStorage.setItem(GH_KEY, JSON.stringify(o));
+    }
     if(!confirm('从云端拉取会用仓库里的数据覆盖本机当前数据。\n本机现有内容会先留在「历史撤销」里，之后可以撤销。继续吗？')) return;
     say('<span style="color:var(--ink-3)">● 正在拉取…</span>');
     const r=await fetchRemote();
