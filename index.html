@@ -1443,7 +1443,7 @@ function cloudSync(){
       }
       else setCloudStat('err');
     }catch(e){ setCloudStat('err'); }
-  }, ghReady()?8000:600);
+  }, ghReady()?3000:600);
 }
 function setCloudStat(s){
   const el=$('cloudStat'); if(!el) return;
@@ -1500,23 +1500,59 @@ async function ghFetch(){
     return {remote:(d && typeof d==='object')?d:null};
   }catch(e){ return {err:true}; }
 }
-/* 写云端：剔除撤销栈（体积大且无需跨设备），成功返回 true */
+/* 写云端：剔除撤销栈（体积大且无需跨设备），成功返回 true
+   缓存上次的 sha，正常情况一次 PUT 就能完成；409 说明别的设备刚提交，重新取 sha 再试一次 */
+let _ghSha=null;
 async function ghPut(){
   const c=ghCfg(); if(!c) return false;
+  const put=async body=>{
+    const res=await fetch(ghApiUrl(c), {method:'PUT', headers:ghHeaders(c), body:JSON.stringify(body)});
+    if(res.ok){ try{ const j=await res.json(); if(j&&j.content&&j.content.sha){ _ghSha=j.content.sha; body.sha=_ghSha; } }catch(e){} }
+    return res;
+  };
   try{
-    let sha=null;
-    try{
-      const head=await fetch(ghApiUrl(c), {headers:ghHeaders(c), cache:'no-store'});
-      if(head.ok){ const h=await head.json(); sha=h&&h.sha?h.sha:null; }
-    }catch(e){}
     const payload=JSON.stringify(store, (k,v)=> (k==='undo'? undefined : v));
     const body={ message:'sync '+new Date().toISOString().slice(0,19).replace('T',' '), content:b64enc(payload) };
-    if(sha) body.sha=sha;
-    const res=await fetch(ghApiUrl(c), {method:'PUT', headers:ghHeaders(c), body:JSON.stringify(body)});
+    if(_ghSha) body.sha=_ghSha;
+    else{
+      try{
+        const head=await fetch(ghApiUrl(c), {headers:ghHeaders(c), cache:'no-store'});
+        if(head.ok){ const h=await head.json(); if(h&&h.sha){ _ghSha=h.sha; body.sha=h.sha; } }
+      }catch(e){}
+    }
+    let res=await put(body);
     if(res.ok) return true;
-    if(res.status===409) return false;      /* 别的设备刚提交过，下一轮重试 */
+    if(res.status===409){                 /* sha 过期：重新取一次再提交 */
+      _ghSha=null;
+      try{
+        const head=await fetch(ghApiUrl(c), {headers:ghHeaders(c), cache:'no-store'});
+        if(head.ok){ const h=await head.json(); if(h&&h.sha){ _ghSha=h.sha; body.sha=h.sha;
+          res=await put(body); if(res.ok) return true; } }
+      }catch(e){}
+    }
     return false;
   }catch(e){ return false; }
+}
+/* 静默检查：切回页面或定时轮询时使用——本机没有待上传改动才采用云端，不弹冲突框，不打断输入 */
+let _lastCheck=0, _autoTimer=null;
+async function silentPull(){
+  if(!ghReady() || !cloudAvail() || document.hidden) return;
+  if(+store.updatedAt > +store.syncAt) return;            /* 本机有未上传改动，交给正常同步流程 */
+  const ae=document.activeElement;
+  if(ae && (ae.tagName==='INPUT'||ae.tagName==='TEXTAREA')) return;   /* 正在输入时不重绘 */
+  const now=Date.now();
+  if(now-_lastCheck<8000) return;
+  _lastCheck=now;
+  const r=await fetchRemote();
+  if(r.err || !r.remote) return;
+  if((+r.remote.updatedAt||0) > (+store.updatedAt||0)){ adoptRemote(r.remote); ghSyncStat('cloud'); }
+}
+function startAutoPull(){
+  if(!ghReady()) return;
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) silentPull(); });
+  window.addEventListener('focus', ()=> silentPull());
+  if(_autoTimer) clearInterval(_autoTimer);
+  _autoTimer=setInterval(silentPull, 45000);
 }
 /* 同步状态文案：卡片头部小字 + 卡片内提示 */
 function ghSyncStat(s){
@@ -1538,7 +1574,7 @@ function ghSyncStat(s){
   const where=c.owner+'/'+c.repo+' · '+c.path;
   if(s==='cloud') msg.innerHTML='<span style="color:var(--mint)">● 已同步</span> · '+where+'<br>两台设备都改过时会弹窗让你选保留哪一份。';
   else if(s==='err') msg.innerHTML='<span style="color:#b07d10">● 上传失败，稍后自动重试</span><br>数据已安全存在本机，不影响使用。常见原因：网络不通、令牌过期、权限不足。';
-  else if(s==='idle') msg.innerHTML='<span style="color:var(--ink-3)">● 已连接</span> · '+where+'<br>改动停下 8 秒后自动上传，每次上传是一次提交，可在 GitHub 上查看历史。';
+  else if(s==='idle') msg.innerHTML='<span style="color:var(--ink-3)">● 已连接</span> · '+where+'<br>改动停下约 3 秒后自动上传，每次上传是一次提交，可在 GitHub 上查看历史。';
   else msg.innerHTML='<span style="color:var(--ink-3)">● 正在同步…</span> · '+where;
 }
 /* ---------- 同步冲突弹窗 ---------- */
@@ -1934,7 +1970,7 @@ applyIncBarOpen();
 applyDepBarOpen();
 
 /* 版本标识：发布新版本时改这里，设置页底部可见，便于确认“是否已更新到最新页面” */
-const APP_VER='v55';
+const APP_VER='v56';
 function renderAppVer(){
   const el=$('appVer'); if(!el) return;
   const t=curYM(), y=Math.floor((t-1)/12), m=(t-1)%12+1;
@@ -4691,6 +4727,7 @@ window.addEventListener('orientationchange',()=>setTimeout(sizeTables,200));
 
 refreshAll();
 cloudPull();
+startAutoPull();   /* 切回页面 / 定时静默检查：其他设备改过就自动更新，不必反复刷新 */
 if(!cloudAvail()) maybeSnapCheck();     /* 完全没有云端时：不必等拉取，直接抓 */
 /* PWA：注册 Service Worker（仅 https/localhost 生效，file:// 打开时跳过） */
 if('serviceWorker' in navigator && location.protocol!=='file:'){
