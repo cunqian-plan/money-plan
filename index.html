@@ -2127,7 +2127,7 @@ applyIncBarOpen();
 applyDepBarOpen();
 
 /* 版本标识：发布新版本时改这里，设置页底部可见，便于确认“是否已更新到最新页面” */
-const APP_VER='v70';
+const APP_VER='v71';
 function renderAppVer(){
   const el=$('appVer'); if(!el) return;
   const t=curYM(), y=Math.floor((t-1)/12), m=(t-1)%12+1;
@@ -2706,9 +2706,9 @@ $('yearChips').addEventListener('click',e=>{
 $('monBody').addEventListener('click',e=>{
   const td=e.target.closest('td.edit');
   if(td && !e.target.closest('input')){
-    if(!requireUnlock()) return;
-    /* 其他支出列：先弹明细小窗（列出周期消费/消费计划/还款构成），窗内可进入修改 */
+    /* 其他支出列：明细小窗是只读展示，锁定状态下也允许查看 */
     if(td.dataset.f==='other'){ openOtherDetail(td.dataset.key); return; }
+    if(!requireUnlock()) return;
     beginCellEdit(td); return;
   }
   const mon=e.target.closest('td.c-ym');
@@ -4149,6 +4149,7 @@ function openFloanForm(L){
     +'<button class="btn-mini" id="flCancel">取消</button><button class="btn-mini primary" id="flSave">保存</button></div>';
   f.style.display='block';
   formFlInt();
+  try{ f.scrollIntoView({block:'center',behavior:'smooth'}); }catch(e){ try{ f.scrollIntoView(); }catch(_e){} }
 }
 function closeFloanForm(){ flEditId=null; const f=$('floanForm'); f.style.display='none'; f.innerHTML=''; }
 function saveFloan(){
@@ -4267,6 +4268,8 @@ function openRecurForm(R){
     +'<div style="display:flex;gap:8px;margin-top:8px"><span style="flex:1"></span>'
     +'<button class="btn-mini" id="rcCancel" type="button">取消</button><button class="btn-mini primary" id="rcSave" type="button">保存</button></div></div>';
   f.style.display='block';
+  /* 打开时自动滚到表单：不用再往下拉找窗口 */
+  try{ f.scrollIntoView({block:'center',behavior:'smooth'}); }catch(e){ try{ f.scrollIntoView(); }catch(_e){} }
 }
 function closeRecurForm(){ rcEditId=null; const f=$('recurForm'); if(f){ f.style.display='none'; f.innerHTML=''; } }
 /* 项目在结束时间内是否还有「本期及以后」的扣款期；没有则视为周期已结束 */
@@ -4396,6 +4399,7 @@ function openPlanForm(P){
     +'<div style="display:flex;gap:8px;margin-top:8px"><span style="flex:1"></span>'
     +'<button class="btn-mini" id="pbCancel" type="button">取消</button><button class="btn-mini primary" id="pbSave" type="button">保存</button></div></div>';
   f.style.display='block';
+  try{ f.scrollIntoView({block:'center',behavior:'smooth'}); }catch(e){ try{ f.scrollIntoView(); }catch(_e){} }
 }
 function closePlanForm(){ pbEditId=null; const f=$('planForm'); if(f){ f.style.display='none'; f.innerHTML=''; } }
 async function savePlanBuy(){
@@ -5692,7 +5696,9 @@ $('depList').addEventListener('focusout',e=>{
 });
 $('depList').addEventListener('click',e=>{
   const del=e.target.closest('.dep-del'); if(!del) return;
-  depList().splice(+del.dataset.i,1);
+  const di=+del.dataset.i, dEl=depList()[di];
+  if(dEl && !confirm('删除这笔定期存款？\n存入金额 '+(dEl.amt||0)+' 元 · 存入 '+(dEl.from||'—')+' · 到期 '+(dEl.due||'—')+'\n删除后相关收益与活期计算会随之更新。')) return;
+  depList().splice(di,1);
   saveStore(); renderDepList(); updateCashYield(); refreshPlanAfterDep(); updateDepCashCells();
 });
 /* 月份索引 → 「2026.08」 */
