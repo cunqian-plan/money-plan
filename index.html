@@ -542,7 +542,10 @@
           <span style="flex:1"></span>
           <span style="font-size:10.5px;color:var(--ink-3)">图表可左右滑动</span>
         </div>
-        <div id="assetChart" style="overflow-x:auto;-webkit-overflow-scrolling:touch"></div>
+        <div id="assetChartWrap" style="position:relative">
+          <div id="assetChart" style="overflow-x:auto;-webkit-overflow-scrolling:touch"></div>
+          <div id="assetYAxis" style="position:absolute;left:0;top:0;pointer-events:none;background:linear-gradient(90deg,#fff 0,#fff calc(100% - 4px),rgba(255,255,255,0) 100%)"></div>
+        </div>
       </div>
     </div>
     <div class="card" id="cardBars">
@@ -2086,7 +2089,7 @@ applyIncBarOpen();
 applyDepBarOpen();
 
 /* 版本标识：发布新版本时改这里，设置页底部可见，便于确认“是否已更新到最新页面” */
-const APP_VER='v61';
+const APP_VER='v62';
 function renderAppVer(){
   const el=$('appVer'); if(!el) return;
   const t=curYM(), y=Math.floor((t-1)/12), m=(t-1)%12+1;
@@ -3999,8 +4002,9 @@ function astSmooth(P){
 function renderAssetChart(){
   const host=$('assetChart'); if(!host) return;
   const note=$('assetNote');
+  const yax=$('assetYAxis');
   const rows=S.rows;
-  if(!rows.length){ host.innerHTML='<div style="font-size:12px;color:var(--ink-3);padding:4px 0">暂无数据。</div>'; if(note) note.textContent='单位：元'; return; }
+  if(!rows.length){ host.innerHTML='<div style="font-size:12px;color:var(--ink-3);padding:4px 0">暂无数据。</div>'; if(note) note.textContent='单位：元'; if(yax) yax.innerHTML=''; return; }
   const t0=curYM();
   const curYear=Math.floor((t0-1)/12);
   let pts=[];
@@ -4012,13 +4016,13 @@ function renderAssetChart(){
   }else{
     pts=rows.filter(r=>r.year*12+r.month>=t0).map(r=>({label:r.year+'.'+r.month,v:totalAssetAt(r),cur:r.year*12+r.month===t0}));
   }
-  if(!pts.length){ host.innerHTML='<div style="font-size:12px;color:var(--ink-3);padding:4px 0">本期及以后暂无计划月份。</div>'; if(note) note.textContent='单位：元'; return; }
+  if(!pts.length){ host.innerHTML='<div style="font-size:12px;color:var(--ink-3);padding:4px 0">本期及以后暂无计划月份。</div>'; if(note) note.textContent='单位：元'; if(yax) yax.innerHTML=''; return; }
   const sl=host.scrollLeft;
   const cw=Math.round(host.clientWidth||0)||760;   /* 隐藏时量不到宽度则用 760 兜底 */
   const narrow=cw<430;
   const L=narrow?58:74, R=narrow?14:24, T=16, B=narrow?30:34;
   const H=narrow?210:258;
-  const perPt=narrow?46:54;                        /* 每点横向像素：点多时图变宽，容器左右滑动 */
+  const perPt=narrow?38:46;                        /* 每点横向像素：点多时图变宽，容器左右滑动 */
   const n=pts.length;
   const content=L+R+(n-1)*perPt;
   const W=Math.max(cw,content);
@@ -4041,8 +4045,7 @@ function renderAssetChart(){
   host.innerHTML='<svg width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'" style="display:block">'
     +'<defs><linearGradient id="astArea" x1="0" y1="0" x2="0" y2="1">'
     +'<stop offset="0" stop-color="#3f8fd0" stop-opacity="0.22"/><stop offset="1" stop-color="#3f8fd0" stop-opacity="0.02"/></linearGradient></defs>'
-    +yTicks.map(v=>'<line x1="'+L+'" y1="'+Y(v).toFixed(1)+'" x2="'+(W-R)+'" y2="'+Y(v).toFixed(1)+'" stroke="#eef2f8"/>'
-      +'<text x="'+(L-8)+'" y="'+(Y(v)+4.5).toFixed(1)+'" text-anchor="end" font-size="13" fill="#7d8ea3">'+wan2(v)+'</text>').join('')
+    +yTicks.map(v=>'<line x1="0" y1="'+Y(v).toFixed(1)+'" x2="'+W+'" y2="'+Y(v).toFixed(1)+'" stroke="#eef2f8"/>').join('')
     +(lo<0?'<line x1="'+L+'" y1="'+Y(0).toFixed(1)+'" x2="'+(W-R)+'" y2="'+Y(0).toFixed(1)+'" stroke="#d8e2ee" stroke-dasharray="4 3"/>':'')
     +(areaD?'<path d="'+areaD+'" fill="url(#astArea)" stroke="none"/>':'')
     +(areaD?'<path d="'+lineD+'" fill="none" stroke="#3f8fd0" stroke-width="2.5" stroke-linecap="round"/>':'')
@@ -4059,6 +4062,13 @@ function renderAssetChart(){
     }).join('')
     +'</svg>';
   host.scrollLeft=Math.min(sl,Math.max(0,W-cw));   /* 重绘后尽量保持滑动位置 */
+  /* Y 轴金额做成固定覆盖层：横向滑动时左边的刻度文字不跟着动 */
+  if(yax){
+    yax.style.width=Math.max(0,L-4)+'px';
+    yax.style.height=H+'px';
+    yax.innerHTML=yTicks.map(v=>'<div style="position:absolute;left:0;width:'+(L-8)+'px;top:'+(Y(v)-8).toFixed(1)
+      +'px;height:16px;line-height:16px;text-align:right;font-size:13px;color:#7d8ea3">'+wan2(v)+'</div>').join('');
+  }
   if(note){
     const cur=pts.find(p=>p.cur)||pts[0];
     note.textContent=astMode==='year' ? (cur.label+' 年末 ¥'+fmt(cur.v,0)) : (cur.label+' 本期 ¥'+fmt(cur.v,0));
