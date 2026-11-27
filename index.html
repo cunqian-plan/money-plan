@@ -536,7 +536,13 @@
         <div class="card-s" style="display:flex;align-items:center;gap:6px"><span id="assetNote">单位：元</span><i id="assetCaret" style="font-style: normal; font-size: 10px; line-height: 1; color: var(--ink-3); display: inline-block; transition: transform 0.2s; transform: rotate(0deg);">▾</i></div>
       </div>
       <div id="assetBody">
-        <div id="assetChart"></div>
+        <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px">
+          <button class="btn-mini primary" data-astmode="month">按月</button>
+          <button class="btn-mini" data-astmode="year">按年</button>
+          <span style="flex:1"></span>
+          <span style="font-size:10.5px;color:var(--ink-3)">图表可左右滑动</span>
+        </div>
+        <div id="assetChart" style="overflow-x:auto;-webkit-overflow-scrolling:touch"></div>
       </div>
     </div>
     <div class="card" id="cardBars">
@@ -2038,7 +2044,7 @@ applyIncBarOpen();
 applyDepBarOpen();
 
 /* 版本标识：发布新版本时改这里，设置页底部可见，便于确认“是否已更新到最新页面” */
-const APP_VER='v59';
+const APP_VER='v60';
 function renderAppVer(){
   const el=$('appVer'); if(!el) return;
   const t=curYM(), y=Math.floor((t-1)/12), m=(t-1)%12+1;
@@ -3771,8 +3777,12 @@ function floanPaid(L,beforeKey){
 function bankBalAt(key){
   return round2(S.planAll.filter(p=>p.key===key).reduce((s,p)=>s+Math.max(0,+p.end||0),0));
 }
+function bankBalAtStart(key){
+  /* 期初口径：本月还款前的剩余本金合计（principalBefore=还款前），与还款计划表「剩余本金」列一致 */
+  return round2(S.planAll.filter(p=>p.key===key).reduce((s,p)=>s+Math.max(0,+p.principalBefore||0),0));
+}
 function totalAssetAt(r){
-  return round2((+r.prev||0)-bankBalAt(r.year+'-'+r.month)-floanBurden()+assetRemainSum());
+  return round2((+r.prev||0)-bankBalAtStart(r.year+'-'+r.month)-floanBurden()+assetRemainSum());
 }
 /* ---- 删除一笔朋友借款：一次弹窗问清「剩余欠款是否本月一次扣」 ---- */
 function deleteFloan(L){
@@ -3914,7 +3924,8 @@ function renderAssets(){
       +'<div style="display:'+(open?'block':'none')+'">'+rows+'</div>';
   }).join('');
 }
-/* ---- 总资产走势（本期及以后 · 平滑曲线 + 渐变面积） ---- */
+/* ---- 总资产走势（本期及以后 · 平滑曲线 + 渐变面积 · 按月/按年 · 可左右滑动） ---- */
+let astMode='month';
 function wan2(v){ return (v/10000).toFixed(Math.abs(v)>=1e5?0:1)+'万'; }
 function astSmooth(P){
   if(P.length<3) return 'M'+P.map(p=>p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' L');
@@ -3933,13 +3944,28 @@ function renderAssetChart(){
   const rows=S.rows;
   if(!rows.length){ host.innerHTML='<div style="font-size:12px;color:var(--ink-3);padding:4px 0">暂无数据。</div>'; if(note) note.textContent='单位：元'; return; }
   const t0=curYM();
-  const pts=rows.filter(r=>r.year*12+r.month>=t0).map(r=>({label:r.year+'.'+r.month,v:totalAssetAt(r),cur:r.year*12+r.month===t0}));
+  const curYear=Math.floor((t0-1)/12);
+  let pts=[];
+  if(astMode==='year'){
+    /* 按年：取每年最后一个月的数值 */
+    const byYear={};
+    rows.forEach(r=>{ if(r.year*12+r.month>=t0) byYear[r.year]=r; });
+    pts=Object.keys(byYear).map(y=>({label:String(y),v:totalAssetAt(byYear[y]),cur:(+y===curYear)}));
+  }else{
+    pts=rows.filter(r=>r.year*12+r.month>=t0).map(r=>({label:r.year+'.'+r.month,v:totalAssetAt(r),cur:r.year*12+r.month===t0}));
+  }
   if(!pts.length){ host.innerHTML='<div style="font-size:12px;color:var(--ink-3);padding:4px 0">本期及以后暂无计划月份。</div>'; if(note) note.textContent='单位：元'; return; }
-  /* 按容器实际宽度出图（手机不再等比缩小，字号就是真实像素，刻度才看得清）；隐藏时量不到宽度则用 760 兜底 */
-  const W=Math.round(host.clientWidth||0)||760;
-  const H=Math.round(Math.min(300,Math.max(200,W*0.34)));
-  const narrow=W<430;
+  const sl=host.scrollLeft;
+  const cw=Math.round(host.clientWidth||0)||760;   /* 隐藏时量不到宽度则用 760 兜底 */
+  const narrow=cw<430;
   const L=narrow?58:74, R=narrow?14:24, T=16, B=narrow?30:34;
+  const H=narrow?210:258;
+  const perPt=narrow?46:54;                        /* 每点横向像素：点多时图变宽，容器左右滑动 */
+  const n=pts.length;
+  const content=L+R+(n-1)*perPt;
+  const W=Math.max(cw,content);
+  const spanW=(n===1)?(W-L-R)/2:(W>content?(W-L-R):(n-1)*perPt);
+  const X=i=>L+(n===1?(W-L-R)/2:spanW*i/(n-1));
   const vs=pts.map(p=>p.v);
   /* 纵轴贴住数据范围（不再强行从 0 起），只有真的出现负值时才把 0 纳入，避免长周期走势被压成一条直线 */
   let lo=Math.min(...vs), hi=Math.max(...vs);
@@ -3947,16 +3973,14 @@ function renderAssetChart(){
   const pad=(hi-lo)*0.20; lo-=pad; hi+=pad;
   if(lo>0&&lo<(hi*0.15)) lo=0;
   const span=(hi-lo)||1;
-  const X=i=>L+(W-L-R)*(pts.length===1?0.5:i/(pts.length-1));
   const Y=v=>T+(H-T-B)*(1-(v-lo)/(hi-lo));
   const lineP=pts.map((p,i)=>[X(i),Y(p.v)]);
   const lineD=astSmooth(lineP);
-  const areaD=(pts.length>1)? lineD+' L'+lineP[lineP.length-1][0].toFixed(1)+' '+(H-B).toFixed(0)+' L'+lineP[0][0].toFixed(1)+' '+(H-B).toFixed(0)+' Z' : '';
+  const areaD=(n>1)? lineD+' L'+lineP[n-1][0].toFixed(1)+' '+(H-B).toFixed(0)+' L'+lineP[0][0].toFixed(1)+' '+(H-B).toFixed(0)+' Z' : '';
   const yTicks=[lo+span*0.15,(lo+hi)/2,hi-span*0.15];
-  /* 横轴最多能摆几个「2028.12」这样的标签：按可用宽度算，避免手机端标签叠在一起 */
-  const maxLabels=Math.max(3,Math.floor((W-L-R)/64));
-  const xStep=Math.max(1,Math.ceil(pts.length/maxLabels));
-  host.innerHTML='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;display:block">'
+  /* 横轴标签密度：按年全部显示；按月时按每点像素宽算，避免标签叠在一起 */
+  const lblEvery=(astMode==='year')?1:Math.max(1,Math.ceil(58/perPt));
+  host.innerHTML='<svg width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'" style="display:block">'
     +'<defs><linearGradient id="astArea" x1="0" y1="0" x2="0" y2="1">'
     +'<stop offset="0" stop-color="#3f8fd0" stop-opacity="0.22"/><stop offset="1" stop-color="#3f8fd0" stop-opacity="0.02"/></linearGradient></defs>'
     +yTicks.map(v=>'<line x1="'+L+'" y1="'+Y(v).toFixed(1)+'" x2="'+(W-R)+'" y2="'+Y(v).toFixed(1)+'" stroke="#eef2f8"/>'
@@ -3965,18 +3989,22 @@ function renderAssetChart(){
     +(areaD?'<path d="'+areaD+'" fill="url(#astArea)" stroke="none"/>':'')
     +(areaD?'<path d="'+lineD+'" fill="none" stroke="#3f8fd0" stroke-width="2.5" stroke-linecap="round"/>':'')
     +pts.map((p,i)=>{
-      const show=p.cur||i===pts.length-1||(i%xStep===0);
+      const show=p.cur||i===n-1||(i%lblEvery===0);
       if(!show) return '';
       return '<circle cx="'+X(i).toFixed(1)+'" cy="'+Y(p.v).toFixed(1)+'" r="'+(p.cur?4.5:3)+'" fill="'+(p.cur?'#fff':'#1a4f8a')+'" stroke="'+(p.cur?'#1a4f8a':'none')+'" stroke-width="2.2"><title>'+p.label+' · ¥'+fmt(p.v,0)+'</title></circle>';
     }).join('')
     +pts.map((p,i)=>{
-      if(!((i%xStep===0)||(i===pts.length-1))) return '';
-      const anchor=i===pts.length-1?'end':(i===0?'start':'middle');
-      const x=i===pts.length-1?(W-R):(i===0?L:X(i).toFixed(1));
+      if(!((i%lblEvery===0)||(i===n-1))) return '';
+      const anchor=i===n-1?'end':(i===0?'start':'middle');
+      const x=i===n-1?(W-R):(i===0?L:X(i).toFixed(1));
       return '<text x="'+x+'" y="'+(H-8)+'" text-anchor="'+anchor+'" font-size="12" fill="#7d8ea3">'+p.label+'</text>';
     }).join('')
     +'</svg>';
-  if(note){ const cur=pts.find(p=>p.cur)||pts[0]; note.textContent=cur.label+' 本期 ¥'+fmt(cur.v,0); }
+  host.scrollLeft=Math.min(sl,Math.max(0,W-cw));   /* 重绘后尽量保持滑动位置 */
+  if(note){
+    const cur=pts.find(p=>p.cur)||pts[0];
+    note.textContent=astMode==='year' ? (cur.label+' 年末 ¥'+fmt(cur.v,0)) : (cur.label+' 本期 ¥'+fmt(cur.v,0));
+  }
 }
 /* ---- 交互绑定 ---- */
 (function bindFloan(){
@@ -4069,6 +4097,15 @@ function renderAssetChart(){
     b.style.display=open?'none':'block';
     $('assetCaret').style.transform=open?'rotate(-90deg)':'rotate(0deg)';
     if(!open) setTimeout(renderAssetChart,40);
+  });
+  /* 按月/按年切换 */
+  document.querySelectorAll('[data-astmode]').forEach(b=>{
+    b.addEventListener('click',()=>{
+      if(astMode===b.dataset.astmode) return;
+      astMode=b.dataset.astmode;
+      document.querySelectorAll('[data-astmode]').forEach(x=>x.classList.toggle('primary',x.dataset.astmode===astMode));
+      renderAssetChart();
+    });
   });
 })();
 
