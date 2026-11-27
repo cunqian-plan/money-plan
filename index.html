@@ -445,6 +445,19 @@
     .dep-del{font-size:11px}
   }
   /* 活期存款模块已移除 */
+
+  .ast-row{padding:8px 0;border-bottom:1px solid #f0f3f8}
+  .ast-row .r1,.ast-row .r2{display:flex;align-items:center;gap:8px}
+  .ast-row .r2{margin-top:3px;flex-wrap:wrap;gap:8px 10px}
+  .ast-row input{font-size:12.5px;border:none;border-bottom:1px solid #e3e9f2;background:transparent;padding:3px 0;min-width:0}
+  .ast-row label{display:flex;align-items:center;gap:4px;font-size:10.5px;color:var(--ink-3)}
+  .ast-row .rem{margin-left:auto;font-size:11.5px;color:#0f8a6d;white-space:nowrap}
+  .ast-cat{display:flex;align-items:center;gap:8px;margin:12px 0 2px}
+  .ast-cat b{font-size:12.5px;color:var(--ink)}
+  .ast-hint{font-size:10px;color:var(--ink-3)}
+  .fl-item{border:1px solid #eef2f8;border-radius:10px;padding:8px 10px;margin:8px 0;background:#fbfdff}
+  .fl-rep{display:flex;align-items:center;gap:6px;margin:4px 0}
+  .fl-rep input{font-size:12px;border:none;border-bottom:1px solid #e3e9f2;background:transparent;padding:3px 0;min-width:0}
 </style>
 <style type="text/css">.qa-sdk-wrapper {
   position: fixed;
@@ -514,6 +527,16 @@
   <!-- 概览 -->
   <section class="view" id="view-overview">
     <div class="kpi-grid" id="kpiGrid"></div>
+    <div class="card" id="cardAsset">
+      <div class="card-h" id="assetHead" style="cursor:pointer;-webkit-tap-highlight-color:transparent" title="点击展开/折叠">
+        <div class="card-t">总资产走势</div>
+        <div class="card-s" style="display:flex;align-items:center;gap:6px"><span id="assetNote">单位：元</span><i id="assetCaret" style="font-style: normal; font-size: 10px; line-height: 1; color: var(--ink-3); display: inline-block; transition: transform 0.2s; transform: rotate(0deg);">▾</i></div>
+      </div>
+      <div id="assetBody">
+        <div id="assetChart"></div>
+        <div class="legend"><span>总资产 = 上月结余 − 银行贷款剩余本金 − 朋友借款本息 + 固定资产剩余价值（房产按 ×0.96 计）</span></div>
+      </div>
+    </div>
     <div class="card" id="cardBars">
       <div class="card-h" id="barsHead" style="cursor:pointer;-webkit-tap-highlight-color:transparent" title="点击展开/折叠">
         <div class="card-t">年末存款余额</div>
@@ -639,6 +662,20 @@
   <!-- 还款计划（支持多个贷款项目） -->
   <section class="view" id="view-loan">
     <div id="loanList"><div class="card"><div style="font-size:12px;color:var(--ink-3);padding:6px 0">还没有贷款项目，点下方按钮添加。</div></div></div>
+    <div class="card" id="cardFloan">
+      <div class="card-h" id="floanHead" style="cursor:pointer;-webkit-tap-highlight-color:transparent" title="点击展开/折叠">
+        <div class="card-t">朋友借款</div>
+        <div class="card-s" style="display:flex;align-items:center;gap:6px"><span id="floanSub">未添加</span><i id="floanCaret" style="font-style: normal; font-size: 10px; line-height: 1; color: var(--ink-3); display: inline-block; transition: transform 0.2s; transform: rotate(-90deg);">▾</i></div>
+      </div>
+      <div id="floanBody" style="display: none;">
+        <div id="floanList"></div>
+        <div id="floanForm" style="display:none;border-top:1px dashed #e3e9f2;padding-top:10px;margin-top:6px"></div>
+        <div style="display:flex;gap:10px;margin-top:10px">
+          <button class="btn-mini primary" id="btnAddFloan">＋ 添加借款</button>
+        </div>
+        <div style="font-size:10.5px;color:var(--ink-3);margin-top:6px">每个还款日的金额自动计入存钱计划对应月份的「其他支出」。删除借款时，已还过的月份金额保留不变；未还部分会询问是否一次性计入删除当月。</div>
+      </div>
+    </div>
     <div class="loan-add"><button class="btn-mini primary" id="btnAddLoan">＋ 增加贷款项目</button></div>
   </section>
 
@@ -856,6 +893,16 @@
         <input type="file" id="fileImport" accept=".json" style="display:none">
       </div>
     </div>
+    <div class="card" id="cardAssets">
+      <div class="card-h" id="assetsHead" style="cursor:pointer;-webkit-tap-highlight-color:transparent" title="点击展开/折叠">
+        <div class="card-t">固定资产明细</div>
+        <div class="card-s" style="display:flex;align-items:center;gap:6px"><span id="assetsSub">共 0 项</span><i id="assetsCaret" style="font-style: normal; font-size: 10px; line-height: 1; color: var(--ink-3); display: inline-block; transition: transform 0.2s; transform: rotate(0deg);">▾</i></div>
+      </div>
+      <div id="assetsBody">
+        <div id="assetsList"></div>
+        <div style="font-size:10.5px;color:var(--ink-3);margin-top:6px">剩余价值 = 目前价值 ×（1 − 年折旧率）^已持有年数，随时间自动折减；房产在总资产里按 ×0.96 计。改动即时保存并同步云端。</div>
+      </div>
+    </div>
     <div class="card" id="cardSync">
       <div class="card-h" id="syncHead" style="cursor:pointer;-webkit-tap-highlight-color:transparent" title="点击展开/折叠">
         <div class="card-t">多设备同步</div>
@@ -1068,7 +1115,7 @@
   <button class="tab-btn on" data-view="cashflow"><svg viewBox="0 0 24 24"><path d="M4 19V9"></path><path d="M10 19V5"></path><path d="M16 19v-7"></path><path d="M22 19H2"></path></svg><span>存钱计划</span></button>
   <button class="tab-btn" data-view="loan"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"></rect><path d="M3 11h18"></path><path d="M7 15h4"></path></svg><span>还款计划</span></button>
   <button class="tab-btn" data-view="salary"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"></rect><path d="M8 7h8"></path><path d="M9 12h.01"></path><path d="M15 12h.01"></path><path d="M9 16h.01"></path><path d="M15 16h.01"></path></svg><span>收入测算</span></button>
-  <button class="tab-btn" data-view="notes"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5"></path><path d="M12 8h.01"></path></svg><span>设置</span></button>
+  <button class="tab-btn" data-view="notes"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5"></path><path d="M12 8h.01"></path></svg><span>更多</span></button>
 </nav>
 
 <!-- 行编辑面板 -->
@@ -1385,9 +1432,11 @@ function fetchRemote(){
 }
 function isEmptyStore(o){
   if(!o) return true;
+  const hasAst=o.assets&&AST_CATS.some(c=>(o.assets[c.k]||[]).length);
   return !Object.keys(o.edits||{}).length && !(o.deposits||[]).length
     && !(o.added||[]).length && !Object.keys(o.prevEdits||{}).length
-    && !(o.loans||[]).length;      /* 贷款表也是正式数据：只按单元格编辑判断会把「只有贷款」的账本误当空壳，导致整份被覆盖 */
+    && !(o.loans||[]).length && !(o.floan||[]).length && !hasAst;
+      /* 贷款、朋友借款、固定资产也都是正式数据：防止「只有这些数据」的账本被误判空壳覆盖 */
 }
 /* 判定同步动作：push=推本机上去 pull=采用云端 same=两边一致 conflict=双端都有改动需弹窗 */
 function syncJudge(remote){
@@ -1769,6 +1818,9 @@ function compute(){
   const edits = store.edits||{};
   rows.forEach(r=>{ const e=edits[r.year+'-'+r.month]; if(e){ FIELDS.forEach(f=>{ if(e[f]!=null) r[f]=+e[f]; }); } });
   rows.forEach(r=>{ FIELDS.forEach(f=>{ if(r[f]==null||isNaN(r[f])) r[f]=0; }); });
+  /* 朋友借款：每个还款日的金额并入对应月份的「其他支出」（叠加显示，不写进 edits，
+     删除借款时按规则把已还月份固化、未还部分询问去向） */
+  { const fm=repayMap(); if(Object.keys(fm).length) rows.forEach(r=>{ const a=fm[r.year+'-'+r.month]; if(a) r.other=round2((+r.other||0)+a); }); }
   const byKey={}; rows.forEach(r=>byKey[r.year+'-'+r.month]=r);
   const loans = loansArr();
   const prepayBase={};
@@ -1984,7 +2036,7 @@ applyIncBarOpen();
 applyDepBarOpen();
 
 /* 版本标识：发布新版本时改这里，设置页底部可见，便于确认“是否已更新到最新页面” */
-const APP_VER='v57';
+const APP_VER='v58';
 function renderAppVer(){
   const el=$('appVer'); if(!el) return;
   const t=curYM(), y=Math.floor((t-1)/12), m=(t-1)%12+1;
@@ -3670,12 +3722,298 @@ $('tabbar').addEventListener('click',e=>{
   switchView(b.dataset.view);
 });
 
+/* ================= 固定资产 · 朋友借款 · 总资产走势 ================= */
+const AST_CATS=[{k:'re',n:'房产',fold:0.96},{k:'car',n:'车辆',fold:1},{k:'other',n:'其他',fold:1}];
+function assetsObj(){
+  if(!store.assets||typeof store.assets!=='object') store.assets={};
+  AST_CATS.forEach(c=>{ if(!Array.isArray(store.assets[c.k])) store.assets[c.k]=[]; });
+  return store.assets;
+}
+function floanArr(){ if(!Array.isArray(store.floan)) store.floan=[]; return store.floan; }
+function normYm(v){
+  const a=String(v||'').split('-').map(Number);
+  return (a[0]>2000&&a[1]>=1&&a[1]<=12)? (a[0]+'-'+a[1]) : null;
+}
+function tToKey(t){ const y=Math.floor((t-1)/12), m=t-y*12; return y+'-'+m; }
+function nowKeyStr(){ return tToKey(nowYM()); }
+function cmpYm(a,b){ const p=a.split('-'),q=b.split('-'); return (+p[0]*12+ +p[1])-(+q[0]*12+ +q[1]); }
+function yearsHeld(ymStr){
+  const k=normYm(ymStr); if(!k) return 0;
+  const q=k.split('-').map(Number), d=new Date();
+  return Math.max(0, d.getFullYear()-q[0] + (d.getMonth()+1-q[1])/12);
+}
+function assetRemain(a){
+  const dep=Math.min(0.9,Math.max(0,+(a.depPct||0))/100);
+  return Math.max(0,(+a.value||0)*Math.pow(1-dep,yearsHeld(a.buyYm)));
+}
+function assetRemainSum(){
+  const A=assetsObj(); let s=0;
+  AST_CATS.forEach(c=>A[c.k].forEach(a=>{ const r=assetRemain(a); s+=(c.k==='re'?r*0.96:r); }));
+  return round2(s);
+}
+function repayMap(){
+  const m={};
+  floanArr().forEach(L=>(L.repays||[]).forEach(rp=>{
+    const k=normYm(rp&&rp.ym); if(!k) return;
+    const v=Math.max(0,+rp.amt||0); if(v) m[k]=(m[k]||0)+v;
+  }));
+  return m;
+}
+function floanBurden(){ return round2(floanArr().reduce((s,L)=>s+(+L.total||0)+(+L.interest||0),0)); }
+function floanPaid(L,beforeKey){
+  return round2((L.repays||[]).reduce((s,rp)=>{
+    const k=normYm(rp&&rp.ym);
+    return s+((k&&cmpYm(k,beforeKey)<0)?Math.max(0,+rp.amt||0):0);
+  },0));
+}
+function bankBalAt(key){
+  return round2(S.planAll.filter(p=>p.key===key).reduce((s,p)=>s+Math.max(0,+p.end||0),0));
+}
+function totalAssetAt(r){
+  return round2((+r.prev||0)-bankBalAt(r.key)-floanBurden()+assetRemainSum());
+}
+/* ---- 删除一笔朋友借款：已还月份固化，未还部分询问去向 ---- */
+function deleteFloan(id){
+  const arr=floanArr(); const idx=arr.findIndex(x=>x.id===id); if(idx<0) return;
+  const L=arr[idx];
+  const nowK=nowKeyStr();
+  store.edits=store.edits||{};
+  const fm=repayMap();
+  (L.repays||[]).forEach(rp=>{
+    const k=normYm(rp&&rp.ym); if(!k||cmpYm(k,nowK)>=0) return;
+    const row=S.byKey[k]; if(!row) return;
+    /* 当前显示值（含本借款贡献）直接固化进手填值：删除借款后这个月显示不变 */
+    store.edits[k]=Object.assign({},store.edits[k]||{},{other:round2(row.other)});
+  });
+  const fut=(L.repays||[]).filter(rp=>{ const k=normYm(rp&&rp.ym); return k&&cmpYm(k,nowK)>=0; });
+  if(fut.length){
+    const paid=floanPaid(L,nowK);
+    const remain=round2(Math.max(0,(+L.total||0)+(+L.interest||0)-paid));
+    const yes=confirm('「'+(L.person||'借款')+'」还有未还金额 ¥'+fmt(remain,2)+'（含未到期的还款日）。\n\n点「确定」＝剩余金额全部计入 '+nowK.replace('-','年')+' 月的其他支出；\n点「取消」＝不计入，未来月份里这笔借款的支出会一并消失。');
+    if(yes&&remain>0){
+      const row=S.byKey[nowK];
+      let cur;
+      if(row) cur=round2(row.other-(fm[nowK]||0));          /* 本月显示去掉本借款当月贡献 */
+      else{
+        const e=store.edits[nowK];
+        const b=(store.added||[]).find(a=>a.year+'-'+a.month===nowK)||BASE_ROWS.find(r=>r.year+'-'+r.month===nowK)||{};
+        cur=(e&&e.other!=null)? +e.other : (+b.other||0);
+      }
+      store.edits[nowK]=Object.assign({},store.edits[nowK]||{},{other:round2(cur+remain)});
+    }
+  }
+  arr.splice(idx,1);
+  if(saveStore()){ refreshAll(); toast('借款已删除，已还月份金额保持不变'); }
+}
+/* ---- 朋友借款：渲染 ---- */
+function renderFloan(){
+  const arr=floanArr(); const host=$('floanList'); const sub=$('floanSub');
+  const nowK=nowKeyStr();
+  const remainAll=arr.reduce((s,L)=>s+Math.max(0,(+L.total||0)+(+L.interest||0)-floanPaid(L,nowK)),0);
+  if(sub) sub.textContent=arr.length? (arr.length+' 笔 · 未还 '+fmt(remainAll,0)+' 元'):'未添加';
+  if(!host) return;
+  if(!arr.length){ host.innerHTML='<div style="font-size:12px;color:var(--ink-3);padding:4px 0">还没有借款记录，点下方「添加借款」。</div>'; return; }
+  host.innerHTML=arr.map(L=>{
+    const paid=floanPaid(L,nowK);
+    const remain=round2(Math.max(0,(+L.total||0)+(+L.interest||0)-paid));
+    const reps=(L.repays||[]).map(rp=>{
+      const k=normYm(rp.ym); const past=k&&cmpYm(k,nowK)<0;
+      return '<div style="display:flex;justify-content:space-between;font-size:11.5px;padding:2px 0;color:'+(past?'var(--ink-3)':'var(--ink)')+'"><span>'+(k?k.replace('-','.'):'—')+(past?'（已还）':'')+'</span><b class="num">¥'+fmt(+rp.amt||0,0)+'</b></div>';
+    }).join('');
+    return '<div class="fl-item">'
+      +'<div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">'
+      +'<b style="font-size:13px">'+esc(L.person||'借款')+'</b>'
+      +'<span style="font-size:10.5px;color:var(--ink-3)">'+(L.loanDate?esc(L.loanDate):'')+' 借入</span>'
+      +'<span style="flex:1"></span>'
+      +'<button class="btn-mini" data-fl-edit="'+L.id+'">编辑</button>'
+      +'<button class="btn-mini" data-fl-del="'+L.id+'" style="color:var(--red)">删除</button></div>'
+      +'<div style="display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;margin:4px 0">'
+      +'<span>本金 <b class="num">¥'+fmt(+L.total||0,0)+'</b></span>'
+      +'<span>利息 <b class="num">¥'+fmt(+L.interest||0,0)+'</b></span>'
+      +'<span>已还 <b class="num" style="color:#0f8a6d">¥'+fmt(paid,0)+'</b></span>'
+      +'<span>未还 <b class="num" style="color:#b07d10">¥'+fmt(remain,0)+'</b></span></div>'
+      +(reps?'<div style="border-top:1px dashed #e3e9f2;padding-top:4px">'+reps+'</div>':'')
+      +'</div>';
+  }).join('');
+}
+/* ---- 朋友借款：表单 ---- */
+let flEditId=null;
+function flRepayRowHtml(r){
+  return '<div class="fl-rep"><input type="month" data-rp="ym" value="'+esc(r.ym||'')+'" style="flex:1 1 130px">'
+    +'<input type="number" data-rp="amt" value="'+((r.amt!=null&&r.amt!=='')?+r.amt:'')+'" placeholder="金额" style="flex:1 1 90px">'
+    +'<button class="btn-mini" data-del-rp style="color:var(--red)">✕</button></div>';
+}
+function openFloanForm(L){
+  flEditId=L?L.id:null;
+  const rep=(L&&L.repays&&L.repays.length)?L.repays:[{ym:'',amt:''}];
+  const f=$('floanForm');
+  f.innerHTML='<div style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0">'
+    +'<label style="flex:1 1 120px;font-size:11px;color:var(--ink-2)">借款人<input id="flPerson" value="'+esc(L&&L.person||'')+'" placeholder="姓名" style="width:100%;font-size:13px;border:none;border-bottom:1px solid #e3e9f2;padding:3px 0"></label>'
+    +'<label style="flex:1 1 130px;font-size:11px;color:var(--ink-2)">借款日<input id="flDate" type="month" value="'+esc(L&&L.loanDate||'')+'" style="width:100%;font-size:13px;border:none;border-bottom:1px solid #e3e9f2;padding:3px 0"></label></div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0">'
+    +'<label style="flex:1 1 130px;font-size:11px;color:var(--ink-2)">借款总额（元）<input id="flTotal" type="number" value="'+(L?(+L.total||0):'')+'" placeholder="0" style="width:100%;font-size:13px;border:none;border-bottom:1px solid #e3e9f2;padding:3px 0"></label>'
+    +'<label style="flex:1 1 130px;font-size:11px;color:var(--ink-2)">利息金额（元）<input id="flInterest" type="number" value="'+(L?(+L.interest||0):'')+'" placeholder="0" style="width:100%;font-size:13px;border:none;border-bottom:1px solid #e3e9f2;padding:3px 0"></label></div>'
+    +'<div style="font-size:11px;color:var(--ink-2);margin-top:8px">还款日（可多个，金额自动计入对应月份的「其他支出」）</div>'
+    +'<div id="flRepayRows">'+rep.map(flRepayRowHtml).join('')+'</div>'
+    +'<div style="display:flex;gap:8px;margin-top:8px"><button class="btn-mini" id="btnFlRepay">＋ 加一个还款日</button><span style="flex:1"></span>'
+    +'<button class="btn-mini" id="flCancel">取消</button><button class="btn-mini primary" id="flSave">保存</button></div>';
+  f.style.display='block';
+}
+function closeFloanForm(){ flEditId=null; const f=$('floanForm'); f.style.display='none'; f.innerHTML=''; }
+function saveFloan(){
+  const person=$('flPerson').value.trim().slice(0,20);
+  const date=$('flDate').value||'';
+  const total=round2(parseFloat($('flTotal').value)||0);
+  const interest=round2(parseFloat($('flInterest').value)||0);
+  const repays=[...document.querySelectorAll('#flRepayRows .fl-rep')].map(row=>{
+    const ym=normYm(row.querySelector('[data-rp="ym"]').value);
+    const amt=round2(parseFloat(row.querySelector('[data-rp="amt"]').value)||0);
+    return ym? {ym,amt}:null;
+  }).filter(Boolean);
+  if(!person&&!total&&!interest&&!repays.length){ toast('没有填任何内容'); return; }
+  const arr=floanArr();
+  if(flEditId){
+    const L=arr.find(x=>x.id===flEditId);
+    if(L) Object.assign(L,{person,loanDate:date,total,interest,repays});
+  }else{
+    arr.push({id:'f'+Date.now().toString(36)+Math.floor(Math.random()*1e4),person,loanDate:date,total,interest,repays});
+  }
+  if(saveStore()){ closeFloanForm(); refreshAll(); toast('借款已保存，还款金额已计入存钱计划'); }
+}
+/* ---- 固定资产：渲染 ---- */
+function renderAssets(){
+  const A=assetsObj(); const host=$('assetsList'); if(!host) return;
+  const sub=$('assetsSub');
+  const cnt=AST_CATS.reduce((s,c)=>s+A[c.k].length,0);
+  if(sub) sub.textContent='共 '+cnt+' 项 · 剩余价值合计 '+fmt(assetRemainSum(),0)+' 元';
+  host.innerHTML=AST_CATS.map(c=>{
+    const rows=A[c.k].map(a=>'<div class="ast-row" data-ast-id="'+a.id+'">'
+      +'<div class="r1"><input data-f="name" value="'+esc(a.name||'')+'" placeholder="名称，如 自住房" style="flex:1">'
+      +'<button class="btn-mini" data-ast-del style="color:var(--red);flex:0 0 auto">删除</button></div>'
+      +'<div class="r2"><label>价值<input data-f="value" type="number" value="'+(a.value!=null?(+a.value||0):'')+'" placeholder="0" style="width:76px"></label>'
+      +'<label>购入<input data-f="buyYm" type="month" value="'+esc(a.buyYm||'')+'" style="width:124px"></label>'
+      +'<label>年折旧<input data-f="depPct" type="number" value="'+(a.depPct!=null?+a.depPct:'')+'" placeholder="0" style="width:40px">%</label>'
+      +'<span class="rem num">余 '+fmt(assetRemain(a),0)+'</span></div></div>').join('')
+      || '<div class="ast-hint" style="padding:2px 0 4px">暂无，点右侧「添加」。</div>';
+    const sum=A[c.k].reduce((s2,a)=>s2+assetRemain(a)*c.fold,0);
+    return '<div class="ast-cat"><b>'+c.n+'</b><span class="ast-hint">剩余合计 '+fmt(sum,0)+' 元'+(c.k==='re'?'（总资产按 ×0.96 计）':'')+'</span>'
+      +'<button class="btn-mini" data-ast-add="'+c.k+'" style="margin-left:auto">＋ 添加</button></div>'+rows;
+  }).join('');
+}
+/* ---- 总资产走势 ---- */
+function wan2(v){ return (v/10000).toFixed(Math.abs(v)>=1e5?0:1)+'万'; }
+function renderAssetChart(){
+  const host=$('assetChart'); if(!host) return;
+  const rows=S.rows;
+  if(!rows.length){ host.innerHTML='<div style="font-size:12px;color:var(--ink-3);padding:4px 0">暂无数据。</div>'; return; }
+  const pts=rows.map(r=>({label:r.year+'.'+r.month,v:totalAssetAt(r)}));
+  const W=760,H=258,L=66,R=14,T=16,B=32;   /* 左边距按「-3,067万」这类最长刻度留够，避免负号被裁 */
+  const vs=pts.map(p=>p.v);
+  let lo=Math.min(0,...vs), hi=Math.max(1,...vs);
+  const span=(hi-lo)||1; lo-=span*0.08; hi+=span*0.08;
+  const X=i=>L+(W-L-R)*(pts.length===1?0.5:i/(pts.length-1));
+  const Y=v=>T+(H-T-B)*(1-(v-lo)/(hi-lo));
+  const path=pts.map((p,i)=>X(i).toFixed(1)+','+Y(p.v).toFixed(1)).join(' ');
+  const yTicks=[lo+span*0.18,(lo+hi)/2,hi-span*0.18];
+  const xStep=Math.max(1,Math.round(pts.length/10));
+  host.innerHTML='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;display:block">'
+    +yTicks.map(v=>'<line x1="'+L+'" y1="'+Y(v).toFixed(1)+'" x2="'+(W-R)+'" y2="'+Y(v).toFixed(1)+'" stroke="#eef2f8"/>'
+      +'<text x="'+(L-6)+'" y="'+(Y(v)+4).toFixed(1)+'" text-anchor="end" font-size="11" fill="#8a99ad">'+wan2(v)+'</text>').join('')
+    +(lo<0?'<line x1="'+L+'" y1="'+Y(0).toFixed(1)+'" x2="'+(W-R)+'" y2="'+Y(0).toFixed(1)+'" stroke="#d8e2ee" stroke-dasharray="4 3"/>':'')
+    +'<polyline points="'+path+'" fill="none" stroke="#3f8fd0" stroke-width="2" stroke-linejoin="round"/>'
+    +pts.map((p,i)=>'<circle cx="'+X(i).toFixed(1)+'" cy="'+Y(p.v).toFixed(1)+'" r="2.6" fill="#1a4f8a"><title>'+p.label+' · ¥'+fmt(p.v,0)+'</title></circle>').join('')
+    +pts.map((p,i)=>((i%xStep===0)||(i===pts.length-1))?'<text x="'+X(i).toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle" font-size="10" fill="#8a99ad">'+p.label+'</text>':'').join('')
+    +'</svg>';
+  const note=$('assetNote'); if(note) note.textContent='最新 '+fmt(pts[pts.length-1].v,0)+' 元';
+}
+/* ---- 交互绑定 ---- */
+(function bindFloan(){
+  const card=$('cardFloan'); if(!card) return;
+  $('floanHead').addEventListener('click',()=>{
+    const b=$('floanBody'); const open=b.style.display!=='none';
+    b.style.display=open?'none':'block';
+    $('floanCaret').style.transform=open?'rotate(-90deg)':'rotate(0deg)';
+  });
+  $('btnAddFloan').addEventListener('click',()=>openFloanForm(null));
+  card.addEventListener('click',e=>{
+    const del=e.target.closest('[data-fl-del]');
+    if(del){
+      const L=floanArr().find(x=>x.id===del.dataset.flDel);
+      if(L&&confirm('确定删除这笔借款？\n已还月份计入「其他支出」的金额会保留。')) deleteFloan(L.id);
+      return;
+    }
+    const ed=e.target.closest('[data-fl-edit]');
+    if(ed){ openFloanForm(floanArr().find(x=>x.id===ed.dataset.flEdit)); return; }
+    if(e.target.closest('[data-del-rp]')){ const r=e.target.closest('.fl-rep'); if(r) r.remove(); return; }
+    if(e.target.closest('#btnFlRepay')){
+      const w=document.createElement('div'); w.innerHTML=flRepayRowHtml({});
+      const row=w.firstElementChild; const box=$('flRepayRows');
+      if(box) box.appendChild(row);
+      return;
+    }
+    if(e.target.closest('#flSave')){ saveFloan(); return; }
+    if(e.target.closest('#flCancel')){ closeFloanForm(); return; }
+  });
+})();
+(function bindAssets(){
+  const host=$('assetsList'); if(!host) return;
+  $('assetsHead').addEventListener('click',()=>{
+    const b=$('assetsBody'); const open=b.style.display!=='none';
+    b.style.display=open?'none':'block';
+    $('assetsCaret').style.transform=open?'rotate(-90deg)':'rotate(0deg)';
+  });
+  host.addEventListener('click',e=>{
+    const add=e.target.closest('[data-ast-add]');
+    if(add){
+      const A=assetsObj(); const k=add.dataset.astAdd;
+      A[k].push({id:'a'+Date.now().toString(36)+Math.floor(Math.random()*1e4),name:'',value:0,buyYm:'',depPct:0});
+      if(saveStore()){ refreshAll();
+        setTimeout(()=>{ const rows2=host.querySelectorAll('.ast-row'); const last=rows2[rows2.length-1];
+          const el=last&&last.querySelector('input[data-f="name"]'); if(el) el.focus(); },80);
+      }
+      return;
+    }
+    const del=e.target.closest('[data-ast-del]');
+    if(del){
+      const row=del.closest('.ast-row'); const id=row&&row.dataset.astId; if(!id) return;
+      const A=assetsObj();
+      for(const c of AST_CATS){
+        const i=A[c.k].findIndex(x=>x.id===id);
+        if(i>=0){ if(confirm('确定删除这条固定资产明细？')){ A[c.k].splice(i,1); if(saveStore()){ refreshAll(); toast('已删除'); } } break; }
+      }
+      return;
+    }
+  });
+  host.addEventListener('change',e=>{
+    const inp=e.target.closest('input[data-f]'); if(!inp) return;
+    const row=inp.closest('.ast-row'); const id=row&&row.dataset.astId; if(!id) return;
+    const f=inp.dataset.f; const A=assetsObj();
+    let item=null;
+    AST_CATS.forEach(c=>{ const it=A[c.k].find(x=>x.id===id); if(it) item=it; });
+    if(!item) return;
+    if(f==='name') item.name=inp.value.trim().slice(0,30);
+    else if(f==='value') item.value=round2(parseFloat(inp.value)||0);
+    else if(f==='depPct') item.depPct=Math.min(90,Math.max(0,parseFloat(inp.value)||0));
+    else if(f==='buyYm') item.buyYm=inp.value||'';
+    if(saveStore()){ refreshAll(); }
+  });
+})();
+(function bindAssetCard(){
+  const h=$('assetHead'); if(!h) return;
+  h.addEventListener('click',()=>{
+    const b=$('assetBody'); const open=b.style.display!=='none';
+    b.style.display=open?'none':'block';
+    $('assetCaret').style.transform=open?'rotate(-90deg)':'rotate(0deg)';
+    if(!open) setTimeout(renderAssetChart,40);
+  });
+})();
+
 function switchView(v){
   [...document.querySelectorAll('.tab-btn')].forEach(t=>t.classList.toggle('on',t.dataset.view===v));
   [...document.querySelectorAll('.view')].forEach(s=>s.classList.toggle('active',s.id==='view-'+v));
   document.body.dataset.view=v;
   /* 顶部标题随页签切换：房贷页为「房贷还款计划」 */
-  const titles={loan:'还款计划',cashflow:'存钱计划',overview:'存钱计划',notes:'设置',salary:'收入测算'};
+  const titles={loan:'还款计划',cashflow:'存钱计划',overview:'存钱计划',notes:'更多',salary:'收入测算'};
   const ttl=titles[v]||'存钱计划';
   $('topTitle').textContent=ttl;
   document.title=ttl;
@@ -4614,7 +4952,7 @@ function refreshAll(){
   const sc=$('monScroll'), st=sc?sc.scrollTop:0, sl=sc?sc.scrollLeft:0;
   if(finSyncDues()) saveStore();     /* 月/年结算的理财：到期年月按「起投 + 周期」自动校正（先校正再算） */
   S=compute();
-  renderOverview(); renderAllCurrent(); renderSalaryNote(); renderExpense(); renderCheck(); renderPay(); renderCashYield();
+  renderOverview(); renderAllCurrent(); renderSalaryNote(); renderExpense(); renderCheck(); renderPay(); renderCashYield(); renderAssets(); renderFloan(); renderAssetChart();
   renderExtraRate();
   { const sp=$('autoHideSwPlan'), sl=$('autoHideSwLoan');
     if(sp) sp.checked=autoHideOn();
