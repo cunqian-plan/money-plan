@@ -2121,7 +2121,7 @@ applyIncBarOpen();
 applyDepBarOpen();
 
 /* 版本标识：发布新版本时改这里，设置页底部可见，便于确认“是否已更新到最新页面” */
-const APP_VER='v67';
+const APP_VER='v68';
 function renderAppVer(){
   const el=$('appVer'); if(!el) return;
   const t=curYM(), y=Math.floor((t-1)/12), m=(t-1)%12+1;
@@ -3158,13 +3158,14 @@ $('btnAddMonth').addEventListener('click',()=>{
     return;
   }
   /* 新增一年：在计划最后一个月之后追加 12 个月；
-     工资、公积金、生活支出、其他支出均沿用上一年同月数值，房贷自动引用月供 */
+     工资、公积金、生活支出沿用上一年同月数值，房贷自动引用月供；
+     其他支出不沿用上一年（避免把叠加值固化成手填），新一年由周期消费/消费计划/固定利息自动叠加 */
   const startT=lastR.year*12+lastR.month;
   const fresh=[];
   for(let i=1;i<=12;i++){
     const t=startT+i, y=Math.floor((t-1)/12), m=((t-1)%12)+1;
     const ref=S.rows.find(r=>r.year*12+r.month===t-12)||lastR;   // 上一年同月
-    const row={year:y,month:m,living:ref.living!=null?ref.living:0,other:ref.other||0,prepay:ref.prepay||0,salary:ref.salary!=null?ref.salary:0,fund:ref.fund!=null?ref.fund:0};
+    const row={year:y,month:m,living:ref.living!=null?ref.living:0,other:0,prepay:ref.prepay||0,salary:ref.salary!=null?ref.salary:0,fund:ref.fund!=null?ref.fund:0};
     fresh.push(row);
   }
   addPlanRows(fresh);
@@ -3172,7 +3173,7 @@ $('btnAddMonth').addEventListener('click',()=>{
     curYear='all'; refreshAll();
     const first=fresh[0], tr=document.querySelector(`tr[data-row="${first.year}-${first.month}"]`);
     if(tr) tr.scrollIntoView({block:'center'});
-    toast('已新增 '+first.year+' 年 12 个月，工资/公积金/支出沿用上一年，还贷自动引用月供');
+    toast('已新增 '+first.year+' 年 12 个月，工资/公积金/生活支出沿用上一年；其他支出为 0，由消费项/固定利息自动计入');
   }
 });
 /* 减少一年：删除最后一年（最后行所在年份）的全部月记录 */
