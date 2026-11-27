@@ -1236,6 +1236,20 @@
   </div>
 </div>
 
+<div class="modal" id="askModal">
+  <div class="modal-mask" data-close=""></div>
+  <div class="modal-panel">
+    <div class="mp-head"><div><b id="askTitle">提示</b><div class="mp-sub" id="askSub"></div></div>
+      <button class="mp-x" data-close="">✕</button></div>
+    <div id="askBody" style="font-size:12.5px;line-height:1.8;color:var(--ink-2)"></div>
+    <div style="display:flex;gap:9px;margin-top:14px">
+      <button class="btn-mini" id="askCancel" style="flex:1">取消</button>
+      <button class="btn-mini" id="askNo" style="flex:1">否</button>
+      <button class="btn-mini primary" id="askYes" style="flex:1">是</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -1484,7 +1498,8 @@ async function doSync(){
     let ok=false;
     if(ghReady()){
       ok=await ghPut();
-    }else{
+    }else if(typeof apiURL==='function'){
+      /* 仅兼容很早的服务端模式；GitHub 模式下 apiURL 不存在，直接走下面的失败分支 */
       const res=await fetch(apiURL('/api/state'),{method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({data:store})});
       ok=res.ok;
@@ -1675,16 +1690,43 @@ document.getElementById('cfLocal').addEventListener('click',async()=>{
   if(!_cfRemote){ closeConflict(); return; }
   setCloudStat('sync');
   try{
-    const res=await fetch(apiURL('/api/state'),{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({data:store})});
-    if(res.ok){
-      store.syncAt=store.updatedAt;
+    if(!ghReady()){ setCloudStat('err'); toast('还没配置多设备同步，无法覆盖云端'); return; }
+    _ghSha=null;                                  /* 冲突时缓存的 sha 已过期，强制重新取 */
+    const ok=await ghPut();
+    if(ok){
+      closeConflict(); setCloudStat('cloud'); refreshAll();
+      if(!store.updatedAt) store.updatedAt=Date.now();
+      store.syncAt=store.updatedAt;                 /* 放在 refreshAll 之后再记游标，避免被其内部写入覆盖 */
       try{ localStorage.setItem(LS_KEY, JSON.stringify(store)); }catch(e){}
-      closeConflict(); setCloudStat('cloud');
-      toast('已用本机数据覆盖云端。云端原有版本已在「云端存档」留底，可随时恢复');
-    }else{ setCloudStat('err'); toast('覆盖云端失败，请稍后再试'); }
-  }catch(e){ setCloudStat('err'); toast('覆盖云端失败，请稍后再试'); }
+      toast('已用本机数据覆盖云端。云端旧版本仍在 GitHub 仓库的提交历史里，可找回');
+    }else{ setCloudStat('err'); toast('覆盖云端失败：检查网络或令牌后重试'); }
+  }catch(e){ setCloudStat('err'); toast('覆盖云端失败：检查网络或令牌后重试'); }
 });
+/* ---------- 三选一确认框（是 / 否 / 取消），返回 Promise<'yes'|'no'|'cancel'> ---------- */
+let _askResolve=null;
+function ask3(opt){
+  return new Promise(res=>{
+    _askResolve=res;
+    document.getElementById('askTitle').textContent=opt.title||'提示';
+    document.getElementById('askSub').textContent=opt.sub||'';
+    document.getElementById('askBody').innerHTML=opt.body||'';
+    document.getElementById('askYes').textContent=opt.yes||'是';
+    const noBtn=document.getElementById('askNo');
+    noBtn.textContent=opt.no||'否';
+    noBtn.style.display=opt.needNo===false?'none':'block';
+    document.getElementById('askCancel').textContent=opt.cancel||'取消';
+    document.getElementById('askModal').classList.add('on');
+  });
+}
+function closeAsk(v){
+  document.getElementById('askModal').classList.remove('on');
+  const r=_askResolve; _askResolve=null; if(r) r(v);
+}
+document.getElementById('askModal').addEventListener('click',e=>{ if(e.target.closest('[data-close]')) closeAsk('cancel'); });
+document.getElementById('askYes').addEventListener('click',()=>closeAsk('yes'));
+document.getElementById('askNo').addEventListener('click',()=>closeAsk('no'));
+document.getElementById('askCancel').addEventListener('click',()=>closeAsk('cancel'));
+
 async function cloudPull(){
   if(!cloudAvail()) return;
   try{
@@ -2044,7 +2086,7 @@ applyIncBarOpen();
 applyDepBarOpen();
 
 /* 版本标识：发布新版本时改这里，设置页底部可见，便于确认“是否已更新到最新页面” */
-const APP_VER='v60';
+const APP_VER='v61';
 function renderAppVer(){
   const el=$('appVer'); if(!el) return;
   const t=curYM(), y=Math.floor((t-1)/12), m=(t-1)%12+1;
@@ -3784,10 +3826,35 @@ function bankBalAtStart(key){
 function totalAssetAt(r){
   return round2((+r.prev||0)-bankBalAtStart(r.year+'-'+r.month)-floanBurden()+assetRemainSum());
 }
-/* ---- 删除一笔朋友借款：一次弹窗问清「剩余欠款是否本月一次扣」 ---- */
-function deleteFloan(L){
+/* ---- 删除一笔朋友借款：是 / 否 / 取消 三选一 ---- */
+async function deleteFloan(L){
   const arr=floanArr(); const idx=arr.findIndex(x=>x.id===L.id); if(idx<0) return;
   const nowK=nowKeyStr();
+  const paid=floanPaid(L,nowK);
+  const remain=round2(Math.max(0,(+L.total||0)+(+L.interest||0)-paid));
+  const hasFut=(L.repays||[]).some(rp=>{ const k=normYm(rp&&rp.ym); return k&&cmpYm(k,nowK)>=0; });
+  let addNow=false;
+  if(hasFut&&remain>0){
+    const v=await ask3({
+      title:'删除朋友借款',
+      sub:'「'+(L.person||'借款')+'」剩余欠款 ¥'+fmt(remain,2),
+      body:'这笔借款的还款日在本月或以后。<br><br>'
+        +'<b>是</b>：剩余欠款 <b>¥'+fmt(remain,2)+'</b> 全部计入 '+nowK.replace('-','年')+'月的「其他支出」，然后删除；<br>'
+        +'<b>否</b>：不计入，直接删除（未来月份里这笔支出随之消失）；<br>'
+        +'<b>取消</b>：不删除，保留这笔借款。',
+      yes:'是', no:'否', cancel:'取消'
+    });
+    if(v==='cancel') return;
+    addNow=(v==='yes');
+  }else{
+    const v=await ask3({
+      title:'删除朋友借款',
+      sub:'「'+(L.person||'借款')+'」',
+      body:'确定删除这笔借款？已还过的月份金额会保留不变。',
+      yes:'删除', needNo:false, cancel:'取消'
+    });
+    if(v!=='yes') return;
+  }
   store.edits=store.edits||{};
   const fm=repayMap();
   /* 已还月份（本月之前）：把当前显示值（含本借款贡献）固化进手填值，删除后这些月显示不变 */
@@ -3796,15 +3863,6 @@ function deleteFloan(L){
     const row=S.byKey[k]; if(!row) return;
     store.edits[k]=Object.assign({},store.edits[k]||{},{other:round2(row.other)});
   });
-  const paid=floanPaid(L,nowK);
-  const remain=round2(Math.max(0,(+L.total||0)+(+L.interest||0)-paid));
-  const hasFut=(L.repays||[]).some(rp=>{ const k=normYm(rp&&rp.ym); return k&&cmpYm(k,nowK)>=0; });
-  let addNow=false;
-  if(hasFut&&remain>0){
-    addNow=confirm('「'+(L.person||'借款')+'」还有剩余欠款 ¥'+fmt(remain,2)+'（还款日在本月或以后）。\n\n点「确定」＝剩余欠款全部计入 '+nowK.replace('-','年')+' 月的「其他支出」；\n点「取消」＝不计入，直接删除。');
-  }else{
-    if(!confirm('确定删除这笔借款？')) return;
-  }
   if(addNow){
     const row=S.byKey[nowK];
     let cur;
