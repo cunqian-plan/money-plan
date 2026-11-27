@@ -235,6 +235,19 @@
   .ex-input{width:38px;flex:0 0 38px;border:0;border-bottom:1px dashed #cfdbe8;background:transparent;
     font-family:inherit;font-size:11px;font-weight:600;color:var(--ink);text-align:right;padding:2px 0;border-radius:0}
   .ex-input:focus{outline:none;border-bottom:1px solid var(--primary);background:#f4f9ff}
+  /* 每月生活支出构成：生活支出 / 育儿 两块，各自可折叠 */
+  .ex-grp{border:1px solid #eef2f8;border-radius:12px;padding:8px 10px;margin-top:9px;background:#fbfdff}
+  .ex-grp-h{display:flex;align-items:center;gap:8px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+  .ex-grp-h b{font-size:12.5px;color:var(--ink)}
+  .ex-grp-sum{margin-left:auto;font-size:11.5px;color:#2b7ac4;font-weight:700}
+  .ex-grp-caret{font-style:normal;font-size:10px;color:var(--ink-3);display:inline-block;transition:transform .2s;flex:0 0 auto}
+  .ex-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px dashed #eef2f8}
+  .ex-row:last-child{border-bottom:0}
+  .ex-row>span{font-size:12px;color:var(--ink-2)}
+  .ex-in{width:104px;flex:0 0 104px;text-align:right;border:1px solid #e3e9f2;border-radius:8px;padding:5px 8px;
+    font-family:inherit;font-size:12.5px;font-weight:600;color:var(--ink);background:#fff}
+  .ex-in:focus{outline:none;border-color:var(--primary);background:#f4f9ff}
+  .ex-in::placeholder{color:#bcc9d8;font-weight:500}
   nav.tab{position:fixed;left:0;right:0;bottom:0;z-index:40;background:rgba(255,255,255,.94);backdrop-filter:blur(14px);
     border-top:1px solid var(--line);display:flex;padding:7px 6px calc(7px + var(--safe-b));}
   .tab-btn{flex:1;border:0;background:none;display:flex;flex-direction:column;align-items:center;gap:3px;
@@ -802,9 +815,9 @@
     <div class="card is-collapsed" id="cardExpense">
       <div class="card-h" id="exHead" style="cursor:pointer;-webkit-tap-highlight-color:transparent" title="点击展开/折叠">
         <div class="card-t">每月生活支出构成</div>
-        <div class="card-s" style="display:flex;align-items:center;gap:6px"><span id="exTotal">合计 ¥0</span><i id="exCaret" style="font-style: normal; font-size: 10px; line-height: 1; color: var(--ink-3); display: inline-block; transition: transform 0.2s; transform: rotate(-90deg);">▾</i></div>
+        <div class="card-s" style="display:flex;align-items:center;gap:9px"><span id="exTotal">合计 ¥0</span><button class="btn-mini" id="btnExpApply" style="background:#e8f1fb;color:#2b7ac4;font-weight:600;padding:4px 10px;font-size:11.5px;border-radius:8px" title="把本期之后所有月份的生活支出改成这个合计">修改</button><i id="exCaret" style="font-style: normal; font-size: 10px; line-height: 1; color: var(--ink-3); display: inline-block; transition: transform 0.2s; transform: rotate(-90deg);">▾</i></div>
       </div>
-      <div id="exBody" style="display: none;"><div id="expenseList"><div class="ex-grid"></div></div></div>
+      <div id="exBody" style="display: none;"><div id="expenseList"></div></div>
     </div>
     <div class="card is-collapsed" id="cardSalary">
       <div class="card-h" id="salHead" style="cursor:pointer;-webkit-tap-highlight-color:transparent" title="点击展开/折叠">
@@ -2089,7 +2102,7 @@ applyIncBarOpen();
 applyDepBarOpen();
 
 /* 版本标识：发布新版本时改这里，设置页底部可见，便于确认“是否已更新到最新页面” */
-const APP_VER='v62';
+const APP_VER='v63';
 function renderAppVer(){
   const el=$('appVer'); if(!el) return;
   const t=curYM(), y=Math.floor((t-1)/12), m=(t-1)%12+1;
@@ -4193,34 +4206,88 @@ function switchView(v){
 }
 
 /* ================= 静态内容 & 总刷新 ================= */
-/* 每月生活支出构成：金额可直接改，改完存本地，合计与进度条自动重算 */
-function expAmount(name){
+/* 每月生活支出构成：生活支出 / 育儿 两块，逐项填金额；合计可一键套到本期之后的所有月份 */
+const EXP_GROUPS=[
+  {k:'life', n:'生活支出', items:['餐饮','零食','话费宽带','水电燃气','聚餐娱乐','油费','停车费','医疗','其他']},
+  {k:'baby', n:'育儿',     items:['尿不湿','奶粉','玩具','教育','其他']}
+];
+let expFold={life:false,baby:false};
+function expKeyOf(k,item){ return k+'|'+item; }
+function expVal(k,item){
   const o=store.expense||{};
-  if(o[name]!=null) return +o[name];
-  const d=DATA.expense.find(e=>e.name===name);
-  return d? d.amount : 0;
+  const key=expKeyOf(k,item);
+  if(o[key]!=null) return +o[key]||0;
+  if(o[item]!=null) return +o[item]||0;                 /* 兼容早期按项目名存的键 */
+  const d=(DATA.expense||[]).find(e=>e&&e.name===item);
+  return d? (+d.amount||0) : 0;
 }
+function expGroupSum(k){
+  const g=EXP_GROUPS.find(x=>x.k===k); if(!g) return 0;
+  return round2(g.items.reduce((s,it)=>s+expVal(k,it),0));
+}
+function expTotal(){ return round2(EXP_GROUPS.reduce((s,g)=>s+expGroupSum(g.k),0)); }
 function renderExpense(){
-  const list=DATA.expense.map(e=>({name:e.name, amount:expAmount(e.name)}));
-  const exMax=Math.max(...list.map(x=>x.amount),1);
-  $('expenseList').innerHTML='<div class="ex-grid">'+list.map(e=>`
-  <div class="ex-item"><div class="ex-top"><span class="ex-name">${e.name}</span>
-  <input class="ex-val num ex-input" data-name="${e.name}" value="${e.amount}" inputmode="decimal" enterkeyhint="done"></div>
-  <div class="ex-bar"><i style="width:${Math.max(0,e.amount/exMax*100)}%"></i></div></div>`).join('')+'</div>';
-  $('exTotal').textContent='合计 ¥'+fmt(list.reduce((s,e)=>s+e.amount,0),0);
+  const host=$('expenseList'); if(!host) return;
+  host.innerHTML=EXP_GROUPS.map(g=>{
+    const open=!expFold[g.k];
+    const rows=g.items.map(it=>'<div class="ex-row"><span>'+it+'</span>'
+      +'<input class="ex-in num" type="number" inputmode="decimal" step="0.01" data-ek="'+expKeyOf(g.k,it)+'" value="'
+      +(expVal(g.k,it)||'')+'" placeholder="0"></div>').join('');
+    return '<div class="ex-grp"><div class="ex-grp-h" data-ex-fold="'+g.k+'"><b>'+g.n+'</b>'
+      +'<span class="ex-grp-sum">合计 ¥'+fmt(expGroupSum(g.k),0)+'</span>'
+      +'<i class="ex-grp-caret" style="transform:rotate('+(open?'0':'-90')+'deg)">▾</i></div>'
+      +'<div data-ex-body="'+g.k+'" style="display:'+(open?'block':'none')+'">'+rows+'</div></div>';
+  }).join('');
+  $('exTotal').textContent='合计 ¥'+fmt(expTotal(),0);
 }
-$('expenseList').addEventListener('change',e=>{
-  const inp=e.target.closest('.ex-input'); if(!inp) return;
-  const name=inp.dataset.name, v=parseFloat(String(inp.value).replace(/[^\d.\-]/g,''));
+/* 输入时即时重算三个合计（总合计 + 两块各自合计），不重绘以免打断输入；change 时落盘 */
+$('expenseList').addEventListener('input',e=>{
+  const inp=e.target.closest('.ex-in'); if(!inp) return;
+  const key=inp.dataset.ek;
+  const v=parseFloat(String(inp.value).replace(/[^\d.\-]/g,''));
   store.expense=store.expense||{};
-  store.expense[name]=isFinite(v)?round2(v):0;
-  const ok=saveStore();
-  /* 先失焦再重绘，避免在 change 事件里直接替换掉正在编辑的节点 */
-  setTimeout(()=>{
-    renderExpense();
-    if(ok) toast(name+' 已改为 ¥'+fmt(store.expense[name],0));
-  },0);
+  store.expense[key]=isFinite(v)?round2(v):0;
+  const host=$('expenseList');
+  EXP_GROUPS.forEach(g=>{
+    const body=host.querySelector('[data-ex-body="'+g.k+'"]');
+    const sum=body? body.parentNode.querySelector('.ex-grp-sum') : null;
+    if(sum) sum.textContent='合计 ¥'+fmt(expGroupSum(g.k),0);
+  });
+  $('exTotal').textContent='合计 ¥'+fmt(expTotal(),0);
 });
+$('expenseList').addEventListener('change',e=>{
+  if(!e.target.closest('.ex-in')) return;
+  saveStore();
+});
+/* 生活支出 / 育儿 两块各自折叠 */
+$('expenseList').addEventListener('click',e=>{
+  const h=e.target.closest('[data-ex-fold]'); if(!h) return;
+  const k=h.dataset.exFold; expFold[k]=!expFold[k];
+  renderExpense();
+});
+/* 「修改」：把本期之后所有月份的生活支出改成模块里的总合计 */
+function applyExpenseToFuture(){
+  const T=expTotal();
+  if(!(T>0)){ toast('先把各项金额填上：合计为 0 时不做修改'); return; }
+  const t0=curYM();
+  const keys=(S.rows||[]).filter(r=>r.year*12+r.month>t0).map(r=>r.year+'-'+r.month);
+  if(!keys.length){ toast('本期之后还没有月份，先在存钱计划页添加月份'); return; }
+  const f=keys[0].split('-'), l=keys[keys.length-1].split('-');
+  const fromLbl=f[0]+'年'+(+f[1])+'月', toLbl=l[0]+'年'+(+l[1])+'月';
+  ask3({
+    title:'修改生活支出',
+    sub:'合计 ¥'+fmt(T,0)+' · 影响 '+keys.length+' 个月',
+    body:'要把 <b>'+fromLbl+'</b> 到 <b>'+toLbl+'</b>（共 '+keys.length+' 个月）的「生活支出」全部改成 <b class="num">¥'+fmt(T,2)+'</b> 吗？'
+      +'<br><span style="color:var(--ink-3)">本期和之前的月份不受影响；这些月份里原来手动改过的生活支出会被这个数覆盖。</span>',
+    yes:'确定修改', needNo:false
+  }).then(v=>{
+    if(v!=='yes') return;
+    store.edits=store.edits||{};
+    keys.forEach(k=>{ store.edits[k]=Object.assign({},store.edits[k]||{},{living:round2(T)}); });
+    if(saveStore()){ refreshAll(); toast('已把 '+keys.length+' 个月的「生活支出」改为 ¥'+fmt(T,0)+'（'+fromLbl+' 起）'); }
+  });
+}
+$('btnExpApply').addEventListener('click',e=>{ e.stopPropagation(); applyExpenseToFuture(); });
 
 /* 工资持平线：每年「本期及本期之后」的月份，平均每月到手多少才能与支出持平
    已过月份不计入；房贷：本期所在年按「本期月供」×期数（月供变化自动跟随），
