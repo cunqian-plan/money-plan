@@ -373,6 +373,8 @@
   .check-note{font-size:10.5px;color:var(--ink-3);line-height:1.65;margin-top:10px}
   /* 还款计划：多个贷款项目模块纵向排列 */
   .loan-card{margin-bottom:10px}
+  /* 合并进「按利率计息」卡后：贷款子卡片弱化边框，避免卡片套卡层的厚重感 */
+  #cardRate .loan-card{box-shadow:none;border:1px solid #edf1f7;background:#fbfdff}
   .loan-head{display:flex;align-items:center;gap:7px;margin-bottom:11px}
   .loan-name{flex:1 1 auto;min-width:0;border:0;border-bottom:1px dashed #cfdbe8;background:transparent;
     font-family:inherit;font-size:15px;font-weight:700;color:var(--ink);padding:3px 2px;border-radius:0}
@@ -625,61 +627,9 @@
     <div class="card is-collapsed" id="cardPrepay">
       <div class="card-h" id="prepayHead" style="cursor:pointer;-webkit-tap-highlight-color:transparent" title="点击展开/折叠">
         <div class="card-t">提前还款一览</div>
-        <div class="card-s" style="display:flex;align-items:center;gap:6px"><span id="prepaySum">13 次 · 共 720,000 元</span><i id="ppCaret" style="font-style: normal; font-size: 10px; line-height: 1; color: var(--ink-3); display: inline-block; transition: transform 0.2s; transform: rotate(-90deg);">▾</i></div>
+        <div class="card-s" style="display:flex;align-items:center;gap:6px"><span id="prepaySum"></span><i id="ppCaret" style="font-style: normal; font-size: 10px; line-height: 1; color: var(--ink-3); display: inline-block; transition: transform 0.2s; transform: rotate(-90deg);">▾</i></div>
       </div>
-      <div id="prepayBody" style="display: none;"><div id="prepayList"><div style="display:flex;align-items:baseline;gap:8px;padding:8px 0;border-bottom:1px solid #f2f5f9">
-      <div class="num" style="flex:0 0 50px;font-size:11.5px;color:var(--ink-2);font-weight:600">2028.04</div>
-      <div style="flex:0 0 auto;font-size:12.5px;color:var(--ink);white-space:nowrap">提前还款 ¥30,000</div>
-      <div style="flex:1;min-width:0;font-size:10.5px;color:var(--ink-3);white-space:nowrap;letter-spacing:-.25px;text-align:right">3,309.58→3,176.45 · 月供少还 <b style="color:#0f8a6d">133.13</b></div>
-    </div><div style="display:flex;align-items:baseline;gap:8px;padding:8px 0;border-bottom:1px solid #f2f5f9">
-      <div class="num" style="flex:0 0 50px;font-size:11.5px;color:var(--ink-2);font-weight:600">2028.10</div>
-      <div style="flex:0 0 auto;font-size:12.5px;color:var(--ink);white-space:nowrap">提前还款 ¥30,000</div>
-      <div style="flex:1;min-width:0;font-size:10.5px;color:var(--ink-3);white-space:nowrap;letter-spacing:-.25px;text-align:right">3,176.45→3,041.78 · 月供少还 <b style="color:#0f8a6d">134.67</b></div>
-    </div><div style="display:flex;align-items:baseline;gap:8px;padding:8px 0;border-bottom:1px solid #f2f5f9">
-      <div class="num" style="flex:0 0 50px;font-size:11.5px;color:var(--ink-2);font-weight:600">2029.04</div>
-      <div style="flex:0 0 auto;font-size:12.5px;color:var(--ink);white-space:nowrap">提前还款 ¥80,000</div>
-      <div style="flex:1;min-width:0;font-size:10.5px;color:var(--ink-3);white-space:nowrap;letter-spacing:-.25px;text-align:right">3,041.78→2,678.38 · 月供少还 <b style="color:#0f8a6d">363.40</b></div>
-    </div><div style="display:flex;align-items:baseline;gap:8px;padding:8px 0;border-bottom:1px solid #f2f5f9">
-      <div class="num" style="flex:0 0 50px;font-size:11.5px;color:var(--ink-2);font-weight:600">2029.10</div>
-      <div style="flex:0 0 auto;font-size:12.5px;color:var(--ink);white-space:nowrap">提前还款 ¥30,000</div>
-      <div style="flex:1;min-width:0;font-size:10.5px;color:var(--ink-3);white-space:nowrap;letter-spacing:-.25px;text-align:right">2,678.38→2,540.44 · 月供少还 <b style="color:#0f8a6d">137.94</b></div>
-    </div><div style="display:flex;align-items:baseline;gap:8px;padding:8px 0;border-bottom:1px solid #f2f5f9">
-      <div class="num" style="flex:0 0 50px;font-size:11.5px;color:var(--ink-2);font-weight:600">2030.04</div>
-      <div style="flex:0 0 auto;font-size:12.5px;color:var(--ink);white-space:nowrap">提前还款 ¥80,000</div>
-      <div style="flex:1;min-width:0;font-size:10.5px;color:var(--ink-3);white-space:nowrap;letter-spacing:-.25px;text-align:right">2,540.44→2,167.97 · 月供少还 <b style="color:#0f8a6d">372.47</b></div>
-    </div><div style="display:flex;align-items:baseline;gap:8px;padding:8px 0;border-bottom:1px solid #f2f5f9">
-      <div class="num" style="flex:0 0 50px;font-size:11.5px;color:var(--ink-2);font-weight:600">2030.10</div>
-      <div style="flex:0 0 auto;font-size:12.5px;color:var(--ink);white-space:nowrap">提前还款 ¥30,000</div>
-      <div style="flex:1;min-width:0;font-size:10.5px;color:var(--ink-3);white-space:nowrap;letter-spacing:-.25px;text-align:right">2,167.97→2,026.49 · 月供少还 <b style="color:#0f8a6d">141.48</b></div>
-    </div><div style="display:flex;align-items:baseline;gap:8px;padding:8px 0;border-bottom:1px solid #f2f5f9">
-      <div class="num" style="flex:0 0 50px;font-size:11.5px;color:var(--ink-2);font-weight:600">2031.04</div>
-      <div style="flex:0 0 auto;font-size:12.5px;color:var(--ink);white-space:nowrap">提前还款 ¥90,000</div>
-      <div style="flex:1;min-width:0;font-size:10.5px;color:var(--ink-3);white-space:nowrap;letter-spacing:-.25px;text-align:right">2,026.49→1,596.40 · 月供少还 <b style="color:#0f8a6d">430.09</b></div>
-    </div><div style="display:flex;align-items:baseline;gap:8px;padding:8px 0;border-bottom:1px solid #f2f5f9">
-      <div class="num" style="flex:0 0 50px;font-size:11.5px;color:var(--ink-2);font-weight:600">2031.11</div>
-      <div style="flex:0 0 auto;font-size:12.5px;color:var(--ink);white-space:nowrap">提前还款 ¥40,000</div>
-      <div style="flex:1;min-width:0;font-size:10.5px;color:var(--ink-3);white-space:nowrap;letter-spacing:-.25px;text-align:right">1,596.40→1,402.18 · 月供少还 <b style="color:#0f8a6d">194.22</b></div>
-    </div><div style="display:flex;align-items:baseline;gap:8px;padding:8px 0;border-bottom:1px solid #f2f5f9">
-      <div class="num" style="flex:0 0 50px;font-size:11.5px;color:var(--ink-2);font-weight:600">2032.04</div>
-      <div style="flex:0 0 auto;font-size:12.5px;color:var(--ink);white-space:nowrap">提前还款 ¥70,000</div>
-      <div style="flex:1;min-width:0;font-size:10.5px;color:var(--ink-3);white-space:nowrap;letter-spacing:-.25px;text-align:right">1,402.18→1,058.30 · 月供少还 <b style="color:#0f8a6d">343.88</b></div>
-    </div><div style="display:flex;align-items:baseline;gap:8px;padding:8px 0;border-bottom:1px solid #f2f5f9">
-      <div class="num" style="flex:0 0 50px;font-size:11.5px;color:var(--ink-2);font-weight:600">2032.10</div>
-      <div style="flex:0 0 auto;font-size:12.5px;color:var(--ink);white-space:nowrap">提前还款 ¥40,000</div>
-      <div style="flex:1;min-width:0;font-size:10.5px;color:var(--ink-3);white-space:nowrap;letter-spacing:-.25px;text-align:right">1,058.30→858.95 · 月供少还 <b style="color:#0f8a6d">199.36</b></div>
-    </div><div style="display:flex;align-items:baseline;gap:8px;padding:8px 0;border-bottom:1px solid #f2f5f9">
-      <div class="num" style="flex:0 0 50px;font-size:11.5px;color:var(--ink-2);font-weight:600">2033.03</div>
-      <div style="flex:0 0 auto;font-size:12.5px;color:var(--ink);white-space:nowrap">提前还款 ¥70,000</div>
-      <div style="flex:1;min-width:0;font-size:10.5px;color:var(--ink-3);white-space:nowrap;letter-spacing:-.25px;text-align:right">858.95→505.74 · 月供少还 <b style="color:#0f8a6d">353.21</b></div>
-    </div><div style="display:flex;align-items:baseline;gap:8px;padding:8px 0;border-bottom:1px solid #f2f5f9">
-      <div class="num" style="flex:0 0 50px;font-size:11.5px;color:var(--ink-2);font-weight:600">2033.08</div>
-      <div style="flex:0 0 auto;font-size:12.5px;color:var(--ink);white-space:nowrap">提前还款 ¥90,000</div>
-      <div style="flex:1;min-width:0;font-size:10.5px;color:var(--ink-3);white-space:nowrap;letter-spacing:-.25px;text-align:right">505.74→45.83 · 月供少还 <b style="color:#0f8a6d">459.91</b></div>
-    </div><div style="display:flex;align-items:baseline;gap:8px;padding:8px 0;border-bottom:1px solid #f2f5f9">
-      <div class="num" style="flex:0 0 50px;font-size:11.5px;color:var(--ink-2);font-weight:600">2034.04</div>
-      <div style="flex:0 0 auto;font-size:12.5px;color:var(--ink);white-space:nowrap">提前还款 ¥40,000</div>
-      <div style="flex:1;min-width:0;font-size:10.5px;color:var(--ink-3);white-space:nowrap;letter-spacing:-.25px;text-align:right">45.83→0.00 · 月供少还 <b style="color:#0f8a6d">45.83</b></div>
-    </div></div></div>
+      <div id="prepayBody" style="display: none;"><div id="prepayList"><div style="font-size:12px;color:var(--ink-3);padding:6px 0 2px">暂无提前还款记录，在存款页「提前还款」列填入金额后自动汇总。</div></div></div>
     </div>
     <div class="card is-collapsed" id="cardMs">
       <div class="card-h" id="msHead" style="cursor:pointer;-webkit-tap-highlight-color:transparent" title="点击展开/折叠">
@@ -710,12 +660,15 @@
     </div>
   </section>
 
-  <!-- 还款计划（支持多个贷款项目） -->
+  <!-- 还款计划：按利率计息（贷款项目）+ 固定利息（朋友借款） -->
   <section class="view" id="view-loan">
-    <div id="loanList"><div class="card"><div style="font-size:12px;color:var(--ink-3);padding:6px 0">还没有贷款项目，点下方按钮添加。</div></div></div>
-    <div class="card" id="cardFloan">
-      <div class="card-h" id="floanHead" style="cursor:pointer;-webkit-tap-highlight-color:transparent" title="点击展开/折叠">
-        <div class="card-t">朋友借款</div>
+    <div class="card" id="cardRate">
+      <div class="card-t" style="margin-bottom:12px">按利率计息</div>
+      <div id="loanList"><div style="font-size:12px;color:var(--ink-3);padding:6px 0">还没有贷款项目，点下方按钮添加。</div></div>
+      <div class="loan-add" style="padding:2px 0 14px"><button class="btn-mini primary" id="btnAddLoan">＋ 增加贷款项目</button></div>
+      <div style="border-top:1px dashed #e3e9f2;margin-bottom:12px"></div>
+      <div class="card-h" id="floanHead" style="cursor:pointer;-webkit-tap-highlight-color:transparent;margin-bottom:0" title="点击展开/折叠">
+        <div class="card-t" style="font-size:13.5px">固定利息</div>
         <div class="card-s" style="display:flex;align-items:center;gap:6px"><span id="floanSub">未添加</span><i id="floanCaret" style="font-style: normal; font-size: 10px; line-height: 1; color: var(--ink-3); display: inline-block; transition: transform 0.2s; transform: rotate(-90deg);">▾</i></div>
       </div>
       <div id="floanBody" style="display: none;">
@@ -727,7 +680,6 @@
         <div style="font-size:10.5px;color:var(--ink-3);margin-top:6px">每个还款日的金额自动计入存钱计划对应月份的「其他支出」。每笔借款点标题可折叠。删除时：还款日在本月或以后的，会询问是否把剩余欠款一次性计入本月；已还过的月份金额保留不变。</div>
       </div>
     </div>
-    <div class="loan-add"><button class="btn-mini primary" id="btnAddLoan">＋ 增加贷款项目</button></div>
   </section>
 
   <!-- 说明 -->
@@ -2169,7 +2121,7 @@ applyIncBarOpen();
 applyDepBarOpen();
 
 /* 版本标识：发布新版本时改这里，设置页底部可见，便于确认“是否已更新到最新页面” */
-const APP_VER='v64';
+const APP_VER='v67';
 function renderAppVer(){
   const el=$('appVer'); if(!el) return;
   const t=curYM(), y=Math.floor((t-1)/12), m=(t-1)%12+1;
@@ -2182,7 +2134,7 @@ function renderOverview(){
   const rows=S.rows;
   renderDepBars();
   renderIncBars();
-  if(!rows.length){ $('heroValue').textContent='暂无数据'; $('heroStart').textContent='—'; $('heroPrepay').textContent='—'; $('heroMonths').textContent='0 个月'; $('kpiGrid').innerHTML=''; $('bars').innerHTML=''; $('msSum').textContent=''; window.__peakMax=0; renderPeakNote(); $('milestones').innerHTML='<div style="font-size:12px;color:var(--ink-3)">月份已全部删除，可在「存款」页新增。</div>'; return; }
+  if(!rows.length){ $('heroValue').textContent='暂无数据'; $('heroStart').textContent='—'; $('heroPrepay').textContent='—'; $('heroMonths').textContent='0 个月'; $('kpiGrid').innerHTML=''; $('bars').innerHTML=''; $('msSum').textContent=''; window.__peakMax=0; renderPeakNote(); $('milestones').innerHTML='<div style="font-size:12px;color:var(--ink-3)">月份已全部删除，可在「存款」页新增。</div>'; $('prepaySum').textContent=''; $('prepayList').innerHTML='<div style="font-size:12px;color:var(--ink-3);padding:6px 0 2px">暂无提前还款记录，在存款页「提前还款」列填入金额后自动汇总。</div>'; return; }
   const last=rows[rows.length-1];
   const allPlan=S.planAll||S.plan;
   const prepayTotal=allPlan.reduce((s,p)=>s+p.prepay,0);
@@ -2414,7 +2366,7 @@ let loanFold={}; try{ loanFold=JSON.parse(localStorage.getItem('loanFold')||'{}'
 function renderLoan(){
   const host=$('loanList'); if(!host) return;
   const res=S.loans||[];
-  if(!res.length){ host.innerHTML='<div class="card"><div style="font-size:12px;color:var(--ink-3);padding:6px 0">还没有贷款项目，点下方按钮添加。</div></div>'; return; }
+  if(!res.length){ host.innerHTML='<div style="font-size:12px;color:var(--ink-3);padding:6px 0">还没有贷款项目，点下方按钮添加。</div>'; return; }
   host.innerHTML=res.map(r=>{
     const L=r.loan, plan=r.plan, lid=L.id;
     const ty=LOAN_TYPES[L.type]||LOAN_TYPES.other;
@@ -3978,10 +3930,10 @@ function recurHits(R,key){
 /* 某个月「其他支出」里的自动叠加项：朋友借款还款 + 周期消费 + 消费计划 */
 function extraOtherOf(key){
   const items=[]; let total=0;
-  floanArr().forEach(L=>(L.repays||[]).forEach(rp=>{
+  floanArr().forEach(L=>floanIntOf(L).forEach(rp=>{
     const k=normYm(rp&&rp.ym); if(!k||k!==key) return;
-    const v=Math.max(0,+rp.amt||0); if(!v) return;
-    items.push({name:(L.person||'朋友借款')+' · 还款',amt:v,src:'floan'}); total+=v;
+    const v=Math.max(0,+rp.amt||0)+Math.max(0,rp._int||0); if(!v) return;
+    items.push({name:(L.person||'朋友借款')+' · 还款'+(rp._int>0?'（含利息 '+fmt(rp._int,2)+'）':''),amt:v,src:'floan'}); total+=v;
   }));
   recurArr().forEach(R=>{
     if(!recurHits(R,key)) return;
@@ -4011,10 +3963,35 @@ function solidifyExtra(key,amt){
   store.edits[key]=Object.assign({},store.edits[key]||{},{other:round2(rawOtherOf(key)+amt)});
 }
 function floanBurden(){ return round2(floanArr().reduce((s,L)=>s+(+L.total||0)+(+L.interest||0),0)); }
+/* 每笔借款各还款日的利息分摊：按年月排序后，前面还款日手动填的利息保留（累计不超过利息总额），
+   剩余利息自动归最后一个还款日，随该日本金一起计入「其他支出」（生成副本，不污染 store 原始数据） */
+function floanIntOf(L){
+  const T=Math.max(0,round2(+L.interest||0));
+  const reps=(L.repays||[]).slice().sort((a,b)=>{
+    const ka=normYm(a&&a.ym),kb=normYm(b&&b.ym);
+    if(!ka&&!kb) return 0; if(!ka) return 1; if(!kb) return -1;
+    return cmpYm(ka,kb);
+  }).map(rp=>({ym:rp&&rp.ym,amt:rp&&rp.amt,int:rp&&rp.int}));
+  let acc=0;
+  reps.forEach((rp,i)=>{
+    if(i<reps.length-1){
+      const v=Math.min(Math.max(0,round2(+rp.int||0)),Math.max(0,round2(T-acc)));
+      acc=round2(acc+v); rp._int=v;
+    }else{
+      rp._int=round2(Math.max(0,T-acc));   /* 最后一个还款日：利息总额减去前面已填部分 */
+    }
+  });
+  return reps;
+}
+/* 表单保存时同样规则：返回规范化的 repays（int 只在 >0 时保留） */
+function clampRepays(repays,interest){
+  const reps=floanIntOf({interest,repays});
+  return reps.map(rp=>{ const o={ym:rp.ym,amt:round2(Math.max(0,+rp.amt||0))}; if(rp._int>0) o.int=rp._int; return o; });
+}
 function floanPaid(L,beforeKey){
-  return round2((L.repays||[]).reduce((s,rp)=>{
+  return round2(floanIntOf(L).reduce((s,rp)=>{
     const k=normYm(rp&&rp.ym);
-    return s+((k&&cmpYm(k,beforeKey)<0)?Math.max(0,+rp.amt||0):0);
+    return s+((k&&cmpYm(k,beforeKey)<0)?Math.max(0,+rp.amt||0)+Math.max(0,rp._int||0):0);
   },0));
 }
 function bankBalAt(key){
@@ -4057,11 +4034,11 @@ async function deleteFloan(L){
     if(v!=='yes') return;
   }
   store.edits=store.edits||{};
-  /* 已还月份（本月之前）：把本借款在这些月的还款贡献转成手填值，删除后这些月显示不变
+  /* 已还月份（本月之前）：把本借款在这些月的还款贡献（本金+利息）转成手填值，删除后这些月显示不变
      （只固化本笔贡献，不影响其他借款/周期消费的自动叠加） */
-  (L.repays||[]).forEach(rp=>{
+  floanIntOf(L).forEach(rp=>{
     const k=normYm(rp&&rp.ym); if(!k||cmpYm(k,nowK)>=0) return;
-    solidifyExtra(k,Math.max(0,+rp.amt||0));
+    solidifyExtra(k,Math.max(0,+rp.amt||0)+Math.max(0,rp._int||0));
   });
   if(addNow){
     store.edits[nowK]=Object.assign({},store.edits[nowK]||{},{other:round2(rawOtherOf(nowK)+remain)});
@@ -4082,9 +4059,10 @@ function renderFloan(){
   host.innerHTML=arr.map(L=>{
     const paid=floanPaid(L,nowK);
     const remain=round2(Math.max(0,(+L.total||0)+(+L.interest||0)-paid));
-    const reps=(L.repays||[]).map(rp=>{
+    const reps=floanIntOf(L).map(rp=>{
       const k=normYm(rp.ym); const past=k&&cmpYm(k,nowK)<0;
-      return '<div style="display:flex;justify-content:space-between;font-size:11.5px;padding:2px 0;color:'+(past?'var(--ink-3)':'var(--ink)')+'"><span>'+(k?k.replace('-','.'):'—')+(past?'（已还）':'')+'</span><b class="num">¥'+fmt(+rp.amt||0,0)+'</b></div>';
+      const it=Math.max(0,rp._int||0);
+      return '<div style="display:flex;justify-content:space-between;font-size:11.5px;padding:2px 0;color:'+(past?'var(--ink-3)':'var(--ink)')+'"><span>'+(k?k.replace('-','.'):'—')+(past?'（已还）':'')+'</span><b class="num">¥'+fmt(+rp.amt||0,0)+(it>0?'<span style="font-weight:400;color:var(--ink-3)">＋利息 '+fmt(it,0)+'</span>':'')+'</b></div>';
     }).join('');
     const open=!flFold[L.id];
     return '<div class="fl-item">'
@@ -4109,9 +4087,43 @@ function renderFloan(){
 /* ---- 朋友借款：表单 ---- */
 let flEditId=null;
 function flRepayRowHtml(r){
-  return '<div class="fl-rep"><input type="month" data-rp="ym" value="'+esc(r.ym||'')+'" style="flex:1 1 130px">'
-    +'<input type="number" data-rp="amt" value="'+((r.amt!=null&&r.amt!=='')?+r.amt:'')+'" placeholder="金额" style="flex:1 1 90px">'
+  return '<div class="fl-rep"><input type="month" data-rp="ym" value="'+esc(r.ym||'')+'" style="flex:1 1 110px">'
+    +'<input type="number" data-rp="amt" value="'+((r.amt!=null&&r.amt!=='')?+r.amt:'')+'" placeholder="金额" style="flex:1 1 78px">'
+    +'<input type="number" data-rp="int" value="'+((r.int!=null&&r.int!=='')?+r.int:'')+'" placeholder="利息" style="flex:1 1 78px">'
     +'<button class="btn-mini" data-del-rp style="color:var(--red)">✕</button></div>';
+}
+/* 表单内实时分摊：按年月排序，前面行手填利息（超过剩余额度自动截断并提示），
+   最后一行只读、自动显示「利息总额 − 前面已填」；前面填满后其余行清空禁填 */
+function formFlInt(){
+  const f=$('floanForm'); if(!f||f.style.display==='none') return;
+  const iInp=$('flInterest'); if(!iInp) return;
+  const T=Math.max(0,round2(parseFloat(iInp.value)||0));
+  const rows=[...f.querySelectorAll('.fl-rep')].map(row=>({row,
+    ym:normYm(row.querySelector('[data-rp="ym"]').value)}));
+  if(!rows.length) return;
+  const sorted=rows.slice().sort((a,b)=>{
+    if(!a.ym&&!b.ym) return 0; if(!a.ym) return 1; if(!b.ym) return -1;
+    return cmpYm(a.ym,b.ym);
+  });
+  const last=sorted[sorted.length-1].row;
+  let acc=0, over=false;
+  sorted.forEach(o=>{
+    const inp=o.row.querySelector('[data-rp="int"]');
+    if(o.row===last){
+      const v=round2(Math.max(0,T-acc));
+      inp.value=v?String(v):'';
+      inp.readOnly=true; inp.placeholder='自动 '+fmt(v,2);
+      inp.style.color='var(--ink-3)';
+    }else{
+      inp.readOnly=false; inp.placeholder='利息'; inp.style.color='';
+      let v=Math.max(0,parseFloat(inp.value)||0);
+      const left=round2(T-acc);
+      if(v>left){ v=Math.max(0,left); inp.value=v?String(v):''; over=true; }
+      acc=round2(acc+v);
+      if(left<=0.005){ inp.value=''; inp.placeholder='不可填'; }
+    }
+  });
+  if(over) toast('各行利息合计不能超过利息金额，已自动调整');
 }
 function openFloanForm(L){
   flEditId=L?L.id:null;
@@ -4125,9 +4137,11 @@ function openFloanForm(L){
     +'<label style="flex:1 1 130px;font-size:11px;color:var(--ink-2)">利息金额（元）<input id="flInterest" type="number" value="'+(L?(+L.interest||0):'')+'" placeholder="0" style="width:100%;font-size:13px;border:none;border-bottom:1px solid #e3e9f2;padding:3px 0"></label></div>'
     +'<div style="font-size:11px;color:var(--ink-2);margin-top:8px">还款日（可多个，金额自动计入对应月份的「其他支出」）</div>'
     +'<div id="flRepayRows">'+rep.map(flRepayRowHtml).join('')+'</div>'
+    +'<div style="font-size:10.5px;color:var(--ink-3);margin-top:4px">每个还款日可另填利息（可不填）：前面还款日填的利息会从利息总额里扣除，剩余利息自动算到最后一个还款日、随本金一起计入；前面填满后后面的利息不可再填。</div>'
     +'<div style="display:flex;gap:8px;margin-top:8px"><button class="btn-mini" id="btnFlRepay">＋ 加一个还款日</button><span style="flex:1"></span>'
     +'<button class="btn-mini" id="flCancel">取消</button><button class="btn-mini primary" id="flSave">保存</button></div>';
   f.style.display='block';
+  formFlInt();
 }
 function closeFloanForm(){ flEditId=null; const f=$('floanForm'); f.style.display='none'; f.innerHTML=''; }
 function saveFloan(){
@@ -4135,11 +4149,12 @@ function saveFloan(){
   const date=$('flDate').value||'';
   const total=round2(parseFloat($('flTotal').value)||0);
   const interest=round2(parseFloat($('flInterest').value)||0);
-  const repays=[...document.querySelectorAll('#flRepayRows .fl-rep')].map(row=>{
+  const repays=clampRepays([...document.querySelectorAll('#flRepayRows .fl-rep')].map(row=>{
     const ym=normYm(row.querySelector('[data-rp="ym"]').value);
     const amt=round2(parseFloat(row.querySelector('[data-rp="amt"]').value)||0);
-    return ym? {ym,amt}:null;
-  }).filter(Boolean);
+    const it=round2(parseFloat(row.querySelector('[data-rp="int"]').value)||0);
+    return ym? {ym,amt,int:it}:null;
+  }).filter(Boolean),interest);
   if(!person&&!total&&!interest&&!repays.length){ toast('没有填任何内容'); return; }
   const arr=floanArr();
   if(flEditId){
@@ -4573,13 +4588,20 @@ function renderAssetChart(){
 }
 /* ---- 交互绑定 ---- */
 (function bindFloan(){
-  const card=$('cardFloan'); if(!card) return;
+  const card=$('cardRate'); if(!card) return;
   $('floanHead').addEventListener('click',()=>{
     const b=$('floanBody'); const open=b.style.display!=='none';
     b.style.display=open?'none':'block';
     $('floanCaret').style.transform=open?'rotate(-90deg)':'rotate(0deg)';
   });
   $('btnAddFloan').addEventListener('click',()=>openFloanForm(null));
+  /* 表单内：利息总额、还款日年月、利息金额变化时实时重算分摊 */
+  card.addEventListener('input',e=>{
+    if(e.target.id==='flInterest'||e.target.closest('[data-rp="ym"]')||e.target.closest('[data-rp="int"]')) formFlInt();
+  });
+  card.addEventListener('change',e=>{
+    if(e.target.id==='flInterest'||e.target.closest('.fl-rep')) formFlInt();
+  });
   card.addEventListener('click',e=>{
     const del=e.target.closest('[data-fl-del]');
     if(del){
@@ -4595,11 +4617,12 @@ function renderAssetChart(){
     }
     const ed=e.target.closest('[data-fl-edit]');
     if(ed){ openFloanForm(floanArr().find(x=>x.id===ed.dataset.flEdit)); return; }
-    if(e.target.closest('[data-del-rp]')){ const r=e.target.closest('.fl-rep'); if(r) r.remove(); return; }
+    if(e.target.closest('[data-del-rp]')){ const r=e.target.closest('.fl-rep'); if(r) r.remove(); formFlInt(); return; }
     if(e.target.closest('#btnFlRepay')){
       const w=document.createElement('div'); w.innerHTML=flRepayRowHtml({});
       const row=w.firstElementChild; const box=$('flRepayRows');
       if(box) box.appendChild(row);
+      formFlInt();
       return;
     }
     if(e.target.closest('#flSave')){ saveFloan(); return; }
