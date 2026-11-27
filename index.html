@@ -248,6 +248,33 @@
     font-family:inherit;font-size:12.5px;font-weight:600;color:var(--ink);background:#fff}
   .ex-in:focus{outline:none;border-color:var(--primary);background:#f4f9ff}
   .ex-in::placeholder{color:#bcc9d8;font-weight:500}
+  /* 消费项模块：三个子块（每月生活支出 / 周期消费 / 消费计划） */
+  .sp-sub{border:1px solid #eef2f8;border-radius:12px;padding:9px 10px;margin-top:9px;background:#fbfdff}
+  .sp-sub-h{display:flex;align-items:center;gap:8px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+  .sp-sub-h>b{font-size:12.5px;color:var(--ink)}
+  .sp-sub-sum{margin-left:auto;font-size:11px;color:#2b7ac4;font-weight:700;white-space:nowrap}
+  .sp-caret{font-style:normal;font-size:10px;color:var(--ink-3);display:inline-block;transition:transform .2s;flex:0 0 auto}
+  .sp-hint{font-size:10.5px;color:var(--ink-3);line-height:1.5;margin-top:6px}
+  .rc-item{border:1px solid #eef2f8;border-radius:10px;padding:7px 9px;margin-top:7px;background:#fff}
+  .rc-head{cursor:pointer;-webkit-tap-highlight-color:transparent;min-width:0}
+  .rc-r1{display:flex;align-items:center;gap:7px;min-width:0}
+  .rc-r1 b{font-size:12.5px;color:var(--ink);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .rc-meta{font-size:10.5px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .rc-amt{font-size:11.5px;font-weight:700;color:var(--ink);white-space:nowrap}
+  .rc-r2{display:flex;align-items:center;gap:7px;margin-top:5px}
+  .rc-r2 .rc-meta{flex:1;min-width:0}
+  .rc-head .btn-mini{white-space:nowrap;padding:4px 11px;font-size:11.5px;flex:0 0 auto}
+  .rc-body{font-size:11.5px;color:var(--ink-2);border-top:1px dashed #e3e9f2;margin-top:6px;padding-top:5px;line-height:1.7}
+  .rc-row{display:flex;justify-content:space-between;align-items:center;font-size:11.5px;padding:2px 0}
+  .rc-form-row{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0}
+  .rc-form-row>label{flex:1 1 130px;font-size:11px;color:var(--ink-2);min-width:0}
+  .rc-form-row input,.rc-form-row select{width:100%;font-size:13px;border:none;border-bottom:1px solid #e3e9f2;padding:3px 0;background:transparent;font-family:inherit;color:var(--ink);box-sizing:border-box}
+  .rc-form-row input:focus,.rc-form-row select:focus{outline:none;border-bottom-color:var(--primary)}
+  .rc-cyc{display:flex;gap:6px;margin:6px 0}
+  .rc-cyc .btn-mini{flex:1;padding:6px 0}
+  .oth-row{display:flex;justify-content:space-between;align-items:center;font-size:12.5px;padding:8px 0;border-bottom:1px dashed #edf2f8;color:var(--ink-2)}
+  .oth-row:last-child{border-bottom:0}
+  .oth-row b{color:var(--ink)}
   nav.tab{position:fixed;left:0;right:0;bottom:0;z-index:40;background:rgba(255,255,255,.94);backdrop-filter:blur(14px);
     border-top:1px solid var(--line);display:flex;padding:7px 6px calc(7px + var(--safe-b));}
   .tab-btn{flex:1;border:0;background:none;display:flex;flex-direction:column;align-items:center;gap:3px;
@@ -812,12 +839,34 @@
         <div class="foot" id="bkFoot"></div>
       </div>
     </div>
-    <div class="card is-collapsed" id="cardExpense">
-      <div class="card-h" id="exHead" style="cursor:pointer;-webkit-tap-highlight-color:transparent" title="点击展开/折叠">
-        <div class="card-t">每月生活支出构成</div>
-        <div class="card-s" style="display:flex;align-items:center;gap:9px"><span id="exTotal">合计 ¥0</span><button class="btn-mini" id="btnExpApply" style="background:#e8f1fb;color:#2b7ac4;font-weight:600;padding:4px 10px;font-size:11.5px;border-radius:8px" title="把本期之后所有月份的生活支出改成这个合计">修改</button><i id="exCaret" style="font-style: normal; font-size: 10px; line-height: 1; color: var(--ink-3); display: inline-block; transition: transform 0.2s; transform: rotate(-90deg);">▾</i></div>
+    <div class="card is-collapsed" id="cardSpend">
+      <div class="card-h" id="spendHead" style="cursor:pointer;-webkit-tap-highlight-color:transparent" title="点击展开/折叠">
+        <div class="card-t">消费项</div>
+        <div class="card-s" style="display:flex;align-items:center;gap:6px"><span id="spendTotal">每月 ¥0</span><i id="spendCaret" style="font-style: normal; font-size: 10px; line-height: 1; color: var(--ink-3); display: inline-block; transition: transform 0.2s; transform: rotate(-90deg);">▾</i></div>
       </div>
-      <div id="exBody" style="display: none;"><div id="expenseList"></div></div>
+      <div id="spendBody" style="display: none;">
+        <div class="sp-sub">
+          <div class="sp-sub-h" data-sp-fold="life"><b>每月生活支出</b><span class="sp-sub-sum" id="exTotal">合计 ¥0</span><button class="btn-mini" id="btnExpApply" style="background:#e8f1fb;color:#2b7ac4;font-weight:600;padding:4px 10px;font-size:11.5px;border-radius:8px" title="把本期之后所有月份的生活支出改成这个合计">修改</button><i class="sp-caret" style="transform:rotate(0deg)">▾</i></div>
+          <div class="sp-sub-b" data-sp-body="life"><div id="expenseList"></div></div>
+          <div class="sp-hint">每月固定生活开销的构成。点「修改」可把上面的合计一键套用到存钱计划页本期之后所有月份的「生活支出」列。</div>
+        </div>
+        <div class="sp-sub">
+          <div class="sp-sub-h" data-sp-fold="recur"><b>周期消费</b><span class="sp-sub-sum" id="recurYear">本年度 ¥0</span><button class="btn-mini" id="btnAddRecur" style="background:#e8f1fb;color:#2b7ac4;font-weight:600;padding:4px 10px;font-size:11.5px;border-radius:8px">＋ 增加消费项</button><i class="sp-caret" style="transform:rotate(0deg)">▾</i></div>
+          <div class="sp-sub-b" data-sp-body="recur">
+            <div id="recurList"></div>
+            <div id="recurForm" style="display:none"></div>
+          </div>
+          <div class="sp-hint">按月：金额计入周期内每个月的「其他支出」；按年：金额计入周期内每年与开始月份相同的那个月（如 27年3月 起 → 每年 3 月）。金额自动进存钱计划页，不用手填。</div>
+        </div>
+        <div class="sp-sub">
+          <div class="sp-sub-h" data-sp-fold="plan"><b>消费计划</b><span class="sp-sub-sum" id="planYear">本年度 ¥0</span><button class="btn-mini" id="btnAddPlan" style="background:#e8f1fb;color:#2b7ac4;font-weight:600;padding:4px 10px;font-size:11.5px;border-radius:8px">＋ 增加项目</button><i class="sp-caret" style="transform:rotate(0deg)">▾</i></div>
+          <div class="sp-sub-b" data-sp-body="plan">
+            <div id="planList"></div>
+            <div id="planForm" style="display:none"></div>
+          </div>
+          <div class="sp-hint">一次性消费：金额自动计入指定年月的「其他支出」，删除项目时同步减去（已过时间的消费会先询问）。</div>
+        </div>
+      </div>
     </div>
     <div class="card is-collapsed" id="cardSalary">
       <div class="card-h" id="salHead" style="cursor:pointer;-webkit-tap-highlight-color:transparent" title="点击展开/折叠">
@@ -1266,6 +1315,19 @@
   </div>
 </div>
 
+<div class="modal" id="otherModal">
+  <div class="modal-mask" data-close=""></div>
+  <div class="modal-panel">
+    <div class="mp-head"><div><b>其他支出明细</b><div class="mp-sub" id="othSub"></div></div>
+      <button class="mp-x" data-close="">✕</button></div>
+    <div id="othList" style="margin-top:4px"></div>
+    <div style="display:flex;gap:9px;margin-top:14px">
+      <button class="btn-mini" id="othClose" style="flex:1">关闭</button>
+      <button class="btn-mini primary" id="othEdit" style="flex:1">修改金额</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -1473,8 +1535,9 @@ function isEmptyStore(o){
   const hasAst=o.assets&&AST_CATS.some(c=>(o.assets[c.k]||[]).length);
   return !Object.keys(o.edits||{}).length && !(o.deposits||[]).length
     && !(o.added||[]).length && !Object.keys(o.prevEdits||{}).length
-    && !(o.loans||[]).length && !(o.floan||[]).length && !hasAst;
-      /* 贷款、朋友借款、固定资产也都是正式数据：防止「只有这些数据」的账本被误判空壳覆盖 */
+    && !(o.loans||[]).length && !(o.floan||[]).length && !hasAst
+    && !(o.recur||[]).length && !(o.planBuy||[]).length;
+      /* 贷款、朋友借款、固定资产、周期消费、消费计划也都是正式数据：防止「只有这些数据」的账本被误判空壳覆盖 */
 }
 /* 判定同步动作：push=推本机上去 pull=采用云端 same=两边一致 conflict=双端都有改动需弹窗 */
 function syncJudge(remote){
@@ -1884,9 +1947,13 @@ function compute(){
   const edits = store.edits||{};
   rows.forEach(r=>{ const e=edits[r.year+'-'+r.month]; if(e){ FIELDS.forEach(f=>{ if(e[f]!=null) r[f]=+e[f]; }); } });
   rows.forEach(r=>{ FIELDS.forEach(f=>{ if(r[f]==null||isNaN(r[f])) r[f]=0; }); });
-  /* 朋友借款：每个还款日的金额并入对应月份的「其他支出」（叠加显示，不写进 edits，
-     删除借款时按规则把已还月份固化、未还部分询问去向） */
-  { const fm=repayMap(); if(Object.keys(fm).length) rows.forEach(r=>{ const a=fm[r.year+'-'+r.month]; if(a) r.other=round2((+r.other||0)+a); }); }
+  /* 周期消费 / 消费计划 / 朋友借款还款：自动叠加到对应月份的「其他支出」（不写进 edits）；
+     删除项目时按规则把已成立月份的金额固化进手填值，未到时间的月份随项目删除自动减去 */
+  rows.forEach(r=>{
+    const ex=extraOtherOf(r.year+'-'+r.month);
+    if(ex.total) r.other=round2((+r.other||0)+ex.total);
+    r._extra=ex.items;
+  });
   const byKey={}; rows.forEach(r=>byKey[r.year+'-'+r.month]=r);
   const loans = loansArr();
   const prepayBase={};
@@ -2102,7 +2169,7 @@ applyIncBarOpen();
 applyDepBarOpen();
 
 /* 版本标识：发布新版本时改这里，设置页底部可见，便于确认“是否已更新到最新页面” */
-const APP_VER='v63';
+const APP_VER='v64';
 function renderAppVer(){
   const el=$('appVer'); if(!el) return;
   const t=curYM(), y=Math.floor((t-1)/12), m=(t-1)%12+1;
@@ -2512,6 +2579,25 @@ function applyField(key,f,val){
     }
     return;
   }
+  /* 其他支出：显示值 = 手填部分 + 自动叠加（周期消费/消费计划/朋友借款还款）。
+     1) 不能低于该月自动叠加合计；2) 落盘只存「目标显示值 − 叠加」，否则叠加会重复计一次 */
+  if(f==='other'){
+    const ex=extraOtherOf(key);
+    let target=val, clamped=false;
+    if(target<ex.total-0.005){ target=ex.total; clamped=true; }
+    const writeVal=round2(target-ex.total);
+    const base=(store.added||[]).find(a=>a.year===y&&a.month===m)||BASE_ROWS.find(r=>r.year===y&&r.month===m)||{};
+    const baseVal=base.other!=null?+base.other:0;
+    store.edits=store.edits||{};
+    const merged=Object.assign({}, store.edits[key]||{});
+    if(Math.abs(writeVal-baseVal)<0.005) delete merged.other; else merged.other=writeVal;
+    if(Object.keys(merged).length) store.edits[key]=merged; else delete store.edits[key];
+    if(saveStore()){
+      refreshAll();
+      toast(clamped? ('该月含周期消费/还款合计 ¥'+fmt(ex.total,2)+'，已按此下限保存') : '已保存，后续月份自动重算');
+    }
+    return;
+  }
   /* 基准值＝这一行「没有手动修改时」显示的值：必须优先取「新增」里的行——
      清空重记后内置计划行不参与显示，若拿内置计划的值去比较，手动输入会被误判为「与基准相同」而丢弃 */
   const base = (store.added||[]).find(a=>a.year===y&&a.month===m)
@@ -2661,9 +2747,38 @@ $('yearChips').addEventListener('click',e=>{
 });
 $('monBody').addEventListener('click',e=>{
   const td=e.target.closest('td.edit');
-  if(td && !e.target.closest('input')){ if(!requireUnlock()) return; beginCellEdit(td); return; }
+  if(td && !e.target.closest('input')){
+    if(!requireUnlock()) return;
+    /* 其他支出列：先弹明细小窗（列出周期消费/消费计划/还款构成），窗内可进入修改 */
+    if(td.dataset.f==='other'){ openOtherDetail(td.dataset.key); return; }
+    beginCellEdit(td); return;
+  }
   const mon=e.target.closest('td.c-ym');
   if(mon){ if(!requireUnlock()) return; openRow(mon.dataset.open); return; }
+});
+/* ---- 其他支出明细小窗 ---- */
+let othKey=null;
+function openOtherDetail(key){
+  const r=S.byKey[key]; if(!r) return;
+  othKey=key;
+  const items=r._extra||[];
+  const autoSum=round2(items.reduce((s,x)=>s+x.amt,0));
+  const manual=round2(Math.max(0,r.other-autoSum));
+  const a=String(key).split('-').map(Number);
+  $('othSub').textContent=a[0]+'年'+a[1]+'月 · 合计 ¥'+fmt(r.other,2);
+  let html=items.map(x=>'<div class="oth-row"><span>'+esc(x.name)+'</span><b class="num">¥'+fmt(x.amt,2)+'</b></div>').join('');
+  html+='<div class="oth-row"><span>其他（手动填写部分）</span><b class="num">¥'+fmt(manual,2)+'</b></div>';
+  if(!items.length) html='<div style="font-size:12px;color:var(--ink-3);padding:6px 0">这个月没有周期消费 / 消费计划 / 还款项目，全部为手动填写金额。</div>'+html;
+  $('othList').innerHTML=html;
+  $('otherModal').classList.add('on');
+}
+document.getElementById('otherModal').addEventListener('click',e=>{ if(e.target.closest('[data-close]')) $('otherModal').classList.remove('on'); });
+document.getElementById('othClose').addEventListener('click',()=>{ $('otherModal').classList.remove('on'); });
+document.getElementById('othEdit').addEventListener('click',()=>{
+  $('otherModal').classList.remove('on');
+  if(!othKey) return;
+  const td=$('monBody').querySelector('td[data-key="'+othKey+'"][data-f="other"]');
+  if(td) beginCellEdit(td); else toast('请到存钱计划页找到该月份后修改');
 });
 /* ---- 提前还款分配（多项贷款时） ---- */
 let allocKey=null, allocTotal=0;
@@ -3028,8 +3143,16 @@ $('mpSave').addEventListener('click',()=>{
     const f=inp.dataset.f; if(f==='prev') return;
     const raw=String(inp.value==null?'':inp.value).trim();
     /* 清空 = 改成 0（与表格单元格一致） */
-    const v = raw==='' ? 0 : round2(parseFloat(raw));
+    let v = raw==='' ? 0 : round2(parseFloat(raw));
     if(!isFinite(v)) return;
+    if(f==='other'){
+      /* 其他支出：输入的是目标显示值，落盘存「目标值 − 自动叠加」，且不能低于叠加合计 */
+      const ex=extraOtherOf(rowKey);
+      if(v<ex.total-0.005) v=ex.total;
+      const w=round2(v-ex.total);
+      if(Math.abs(w-(base.other!=null?+base.other:0))<0.005) delete merged.other; else merged.other=w;
+      return;
+    }
     if(Math.abs(v-(base[f]!=null?+base[f]:0))<0.005) delete merged[f]; else merged[f]=v;
   });
   if(Object.keys(merged).length) store.edits[rowKey]=merged; else delete store.edits[rowKey];
@@ -3448,6 +3571,7 @@ function undoLabel(o,c){
     if(JSON.stringify(o.deposits||[])!==JSON.stringify(c.deposits||[])) parts.push('定期明细');
     if(JSON.stringify(o.finances||[])!==JSON.stringify(c.finances||[])) parts.push('理财明细');
     if(JSON.stringify(o.expense||{})!==JSON.stringify(c.expense||{})) parts.push('支出构成');
+    if(JSON.stringify(o.recur||[])!==JSON.stringify(c.recur||[])||JSON.stringify(o.planBuy||[])!==JSON.stringify(c.planBuy||[])) parts.push('消费项');
     if(o.start!==c.start) parts.push('起点结余');
     if(o.editLock!==c.editLock) parts.push(c.editLock?'已锁定':'已解锁');
     if(JSON.stringify(o.prevEdits||{})!==JSON.stringify(c.prevEdits||{})) parts.push('实际结余');
@@ -3755,20 +3879,32 @@ $('cyHead').addEventListener('click',()=>{
   applyCyOpen();
 });
 applyCyOpen();
-/* 每月生活支出构成：同样可折叠，状态记在本机（默认折叠） */
+/* 消费项模块：可折叠，状态记在本机（默认折叠）；内部三个子块各自可折叠 */
 let exOpen = localStorage.getItem('exOpen')==='1';
 function applyExOpen(){
-  const body=$('exBody'); if(!body) return;
+  const body=$('spendBody'); if(!body) return;
   body.style.display = exOpen ? '' : 'none';
-  $('exCaret').style.transform = exOpen ? 'rotate(0deg)' : 'rotate(-90deg)';
-  $('cardExpense').classList.toggle('is-collapsed', !exOpen);
+  $('spendCaret').style.transform = exOpen ? 'rotate(0deg)' : 'rotate(-90deg)';
+  $('cardSpend').classList.toggle('is-collapsed', !exOpen);
 }
-$('exHead').addEventListener('click',()=>{
+$('spendHead').addEventListener('click',()=>{
   exOpen=!exOpen;
   try{ localStorage.setItem('exOpen', exOpen?'1':'0'); }catch(e){}
   applyExOpen();
 });
 applyExOpen();
+document.querySelectorAll('[data-sp-fold]').forEach(h=>{
+  h.addEventListener('click',()=>{
+    const body=h.parentNode.querySelector('[data-sp-body="'+h.dataset.spFold+'"]');
+    const caret=h.querySelector('.sp-caret');
+    const open=body.style.display!=='none';
+    body.style.display=open?'none':'';
+    if(caret) caret.style.transform=open?'rotate(-90deg)':'rotate(0deg)';
+  });
+});
+/* 「＋ 增加消费项 / ＋ 增加项目 / 修改」按钮：不触发折叠 */
+$('btnAddRecur').addEventListener('click',e=>{ e.stopPropagation(); if($('recurForm').style.display==='block'){ closeRecurForm(); } else openRecurForm(null); });
+$('btnAddPlan').addEventListener('click',e=>{ e.stopPropagation(); if($('planForm').style.display==='block'){ closePlanForm(); } else openPlanForm(null); });
 /* 数据备份：同样可折叠，状态记在本机（默认折叠） */
 let bkOpen = localStorage.getItem('bkOpen')==='1';
 function applyBkOpen(){
@@ -3825,6 +3961,55 @@ function repayMap(){
   }));
   return m;
 }
+/* ---- 消费项：周期消费 + 消费计划，金额自动叠加到存钱计划「其他支出」 ---- */
+function recurArr(){ if(!Array.isArray(store.recur)) store.recur=[]; return store.recur; }
+function planArr(){ if(!Array.isArray(store.planBuy)) store.planBuy=[]; return store.planBuy; }
+function ymT(k){ const a=String(k).split('-').map(Number); return a[0]*12+(a[1]||0); }
+function recurHits(R,key){
+  const s=normYm(R&&R.startYm); if(!s) return false;
+  const t=ymT(key), st=ymT(s);
+  const ef=normYm(R&&R.effFrom);                     /* 编辑后新配置只从生效月起算，避免污染已固化月份 */
+  if(ef&&t<ymT(ef)) return false;
+  const e=normYm(R.endYm); const et=e?ymT(e):Infinity;
+  if(t<st||t>et) return false;
+  if(R.cycle==='year') return (+s.split('-')[1])===(+key.split('-')[1]);   /* 年周期：只命中与开始月份相同的月 */
+  return true;
+}
+/* 某个月「其他支出」里的自动叠加项：朋友借款还款 + 周期消费 + 消费计划 */
+function extraOtherOf(key){
+  const items=[]; let total=0;
+  floanArr().forEach(L=>(L.repays||[]).forEach(rp=>{
+    const k=normYm(rp&&rp.ym); if(!k||k!==key) return;
+    const v=Math.max(0,+rp.amt||0); if(!v) return;
+    items.push({name:(L.person||'朋友借款')+' · 还款',amt:v,src:'floan'}); total+=v;
+  }));
+  recurArr().forEach(R=>{
+    if(!recurHits(R,key)) return;
+    const v=Math.max(0,+R.amount||0); if(!v) return;
+    items.push({name:(R.name||'周期消费')+'（'+(R.cycle==='year'?'按年':'按月')+'）',amt:v,src:'recur'}); total+=v;
+  });
+  planArr().forEach(P=>{
+    if(normYm(P&&P.ym)!==key) return;
+    const ef=normYm(P&&P.effFrom); if(ef&&ymT(key)<ymT(ef)) return;
+    const v=Math.max(0,+P.amount||0); if(!v) return;
+    items.push({name:(P.name||'消费计划'),amt:v,src:'plan'}); total+=v;
+  });
+  return {items,total:round2(total)};
+}
+/* 不含叠加的「其他支出」手填部分（edits 优先，其次基准行） */
+function rawOtherOf(key){
+  const [y,m]=key.split('-').map(Number);
+  const e=(store.edits||{})[key];
+  if(e&&e.other!=null) return +e.other;
+  const b=(store.added||[]).find(a=>a.year===y&&a.month===m)||BASE_ROWS.find(r=>r.year===y&&r.month===m)||{};
+  return +b.other||0;
+}
+/* 已成立的金额保留：把某项目在某月的贡献转成手填值（叠加消失后显示不变） */
+function solidifyExtra(key,amt){
+  if(!(amt>0)) return;
+  store.edits=store.edits||{};
+  store.edits[key]=Object.assign({},store.edits[key]||{},{other:round2(rawOtherOf(key)+amt)});
+}
 function floanBurden(){ return round2(floanArr().reduce((s,L)=>s+(+L.total||0)+(+L.interest||0),0)); }
 function floanPaid(L,beforeKey){
   return round2((L.repays||[]).reduce((s,rp)=>{
@@ -3872,23 +4057,14 @@ async function deleteFloan(L){
     if(v!=='yes') return;
   }
   store.edits=store.edits||{};
-  const fm=repayMap();
-  /* 已还月份（本月之前）：把当前显示值（含本借款贡献）固化进手填值，删除后这些月显示不变 */
+  /* 已还月份（本月之前）：把本借款在这些月的还款贡献转成手填值，删除后这些月显示不变
+     （只固化本笔贡献，不影响其他借款/周期消费的自动叠加） */
   (L.repays||[]).forEach(rp=>{
     const k=normYm(rp&&rp.ym); if(!k||cmpYm(k,nowK)>=0) return;
-    const row=S.byKey[k]; if(!row) return;
-    store.edits[k]=Object.assign({},store.edits[k]||{},{other:round2(row.other)});
+    solidifyExtra(k,Math.max(0,+rp.amt||0));
   });
   if(addNow){
-    const row=S.byKey[nowK];
-    let cur;
-    if(row) cur=round2(row.other-(fm[nowK]||0));          /* 本月显示去掉本借款当月贡献 */
-    else{
-      const e=store.edits[nowK];
-      const b=(store.added||[]).find(a=>a.year+'-'+a.month===nowK)||BASE_ROWS.find(r=>r.year+'-'+r.month===nowK)||{};
-      cur=(e&&e.other!=null)? +e.other : (+b.other||0);
-    }
-    store.edits[nowK]=Object.assign({},store.edits[nowK]||{},{other:round2(cur+remain)});
+    store.edits[nowK]=Object.assign({},store.edits[nowK]||{},{other:round2(rawOtherOf(nowK)+remain)});
   }
   delete flFold[L.id];
   arr.splice(idx,1);
@@ -3974,6 +4150,314 @@ function saveFloan(){
   }
   if(saveStore()){ closeFloanForm(); refreshAll(); toast('借款已保存，还款金额已计入存钱计划'); }
 }
+/* ================= 消费项：周期消费 & 消费计划 ================= */
+let rcFold={}, rcEditId=null, pbEditId=null, rcCycleSel='month';
+function recurYearSum(){
+  const y=new Date().getFullYear(); const y1=y*12+1, y2=y*12+12; let s=0;
+  recurArr().forEach(R=>{
+    const amt=Math.max(0,+R.amount||0); if(!amt) return;
+    const st=normYm(R.startYm); if(!st) return;
+    const stT=ymT(st);
+    const e=normYm(R.endYm); const et=e?ymT(e):Infinity;
+    if(R.cycle==='year'){ const t=y*12+(+st.split('-')[1]); if(t>=stT&&t<=et) s+=amt; }
+    else{ const from=Math.max(stT,y1), to=Math.min(et,y2); if(to>=from) s+=amt*(to-from+1); }
+  });
+  return round2(s);
+}
+function planYearSum(){
+  const y=new Date().getFullYear();
+  return round2(planArr().reduce((s,P)=>{ const k=normYm(P&&P.ym); return s+((k&&+k.split('-')[0]===y)?Math.max(0,+P.amount||0):0); },0));
+}
+function ymOptions(val,emptyLabel){
+  let h='';
+  if(emptyLabel) h+='<option value="">'+emptyLabel+'</option>';
+  const y0=new Date().getFullYear()-1;
+  for(let y=y0;y<=y0+32;y++) for(let m=1;m<=12;m++){
+    const v=y+'-'+m;
+    h+='<option value="'+v+'"'+(normYm(val)===v?' selected':'')+'>'+y+'年'+m+'月</option>';
+  }
+  return h;
+}
+function recurRangeTxt(R){
+  const f=k=>{const a=String(k).split('-').map(Number);return a[0]+'.'+a[1];};
+  const s=normYm(R.startYm), e=normYm(R.endYm);
+  return (s?f(s):'—')+' 起'+(e?' · 至 '+f(e):' · 长期');
+}
+/* ---- 周期消费：渲染 ---- */
+function renderRecur(){
+  const host=$('recurList'); if(!host) return;
+  const yr=$('recurYear'); if(yr) yr.textContent='本年度 ¥'+fmt(recurYearSum(),0);
+  const arr=recurArr();
+  if(!arr.length){ host.innerHTML='<div style="font-size:12px;color:var(--ink-3);padding:4px 0">还没有周期消费，点右上「＋ 增加消费项」。</div>'; return; }
+  host.innerHTML=arr.map(R=>{
+    const amt=Math.max(0,+R.amount||0);
+    const open=!rcFold[R.id];
+    const mon=normYm(R.startYm)? (+normYm(R.startYm).split('-')[1]) : null;
+    const desc=R.cycle==='year'
+      ? ('每年 <b>'+mon+' 月</b> 计入该月「其他支出」¥'+fmt(amt,2)+'（'+recurRangeTxt(R)+'）')
+      : ('周期内<b>每个月</b>计入「其他支出」¥'+fmt(amt,2)+'（'+recurRangeTxt(R)+'）');
+    return '<div class="rc-item">'
+      +'<div class="rc-head" data-rc-fold="'+R.id+'">'
+      +'<div class="rc-r1"><i class="fl-caret" style="transform:rotate('+(open?'0':'-90')+'deg)">▾</i>'
+      +'<b>'+esc(R.name||'消费项')+'</b>'
+      +'<span class="rc-amt num">¥'+fmt(amt,0)+(R.cycle==='year'?'/年':'/月')+'</span></div>'
+      +'<div class="rc-r2"><span class="rc-meta">'+(R.cycle==='year'?'按年':'按月')+' · '+recurRangeTxt(R)+'</span>'
+      +'<button class="btn-mini" data-rc-edit="'+R.id+'">编辑</button>'
+      +'<button class="btn-mini" data-rc-del="'+R.id+'" style="color:var(--red)">删除</button></div></div>'
+      +'<div class="rc-body" style="display:'+(open?'block':'none')+'">'+desc+'</div>'
+      +'</div>';
+  }).join('');
+}
+/* ---- 消费计划：渲染 ---- */
+function renderPlanBuy(){
+  const host=$('planList'); if(!host) return;
+  const yr=$('planYear'); if(yr) yr.textContent='本年度 ¥'+fmt(planYearSum(),0);
+  const arr=planArr();
+  if(!arr.length){ host.innerHTML='<div style="font-size:12px;color:var(--ink-3);padding:4px 0">还没有消费计划，点右上「＋ 增加项目」。</div>'; return; }
+  host.innerHTML=arr.map(P=>{
+    const k=normYm(P.ym);
+    const f=k? (k.split('-').map(Number)) : null;
+    return '<div class="rc-item"><div class="rc-head" style="cursor:default">'
+      +'<div class="rc-r1"><b>'+esc(P.name||'项目')+'</b>'
+      +'<span class="rc-amt num">¥'+fmt(Math.max(0,+P.amount||0),0)+'</span></div>'
+      +'<div class="rc-r2"><span class="rc-meta">'+(f? f[0]+'年'+f[1]+'月' : '时间未填')+' 消费</span>'
+      +'<button class="btn-mini" data-pb-edit="'+P.id+'">编辑</button>'
+      +'<button class="btn-mini" data-pb-del="'+P.id+'" style="color:var(--red)">删除</button></div>'
+      +'</div></div>';
+  }).join('');
+}
+/* ---- 周期消费：表单 ---- */
+function openRecurForm(R){
+  rcEditId=R?R.id:null;
+  rcCycleSel=R?(R.cycle||'month'):'month';
+  const f=$('recurForm'); if(!f) return;
+  f.innerHTML='<div style="border-top:1px dashed #e3e9f2;margin-top:8px;padding-top:4px">'
+    +'<div class="rc-form-row">'
+    +'<label>消费内容<input id="rcName" maxlength="20" value="'+esc(R&&R.name||'')+'" placeholder="如 房租 / 车险 / 会员费"></label>'
+    +'<label>金额（元）<input id="rcAmt" type="number" inputmode="decimal" value="'+(R?(+R.amount||0):'')+'" placeholder="0"></label></div>'
+    +'<div style="font-size:11px;color:var(--ink-2);margin-top:4px">周期类型</div>'
+    +'<div class="rc-cyc" id="rcCycBox">'
+    +'<button class="btn-mini'+(rcCycleSel==='month'?' primary':'')+'" data-rc-cyc="month" type="button">按月 · 每月都扣</button>'
+    +'<button class="btn-mini'+(rcCycleSel==='year'?' primary':'')+'" data-rc-cyc="year" type="button">按年 · 每年一个固定月</button></div>'
+    +'<div class="rc-form-row">'
+    +'<label>周期开始时间<select id="rcStart">'+ymOptions(R&&R.startYm||nowKeyStr(),null)+'</select></label>'
+    +'<label>周期结束时间（不选 = 长期有效）<select id="rcEnd">'+ymOptions(R&&R.endYm||'','长期有效（不结束）')+'</select></label></div>'
+    +'<div style="display:flex;gap:8px;margin-top:8px"><span style="flex:1"></span>'
+    +'<button class="btn-mini" id="rcCancel" type="button">取消</button><button class="btn-mini primary" id="rcSave" type="button">保存</button></div></div>';
+  f.style.display='block';
+}
+function closeRecurForm(){ rcEditId=null; const f=$('recurForm'); if(f){ f.style.display='none'; f.innerHTML=''; } }
+/* 项目在结束时间内是否还有「本期及以后」的扣款期；没有则视为周期已结束 */
+function recurHasFuture(cycle,startYm,endYm){
+  const nowT=ymT(nowKeyStr());
+  const s=ymT(startYm);
+  const e=endYm?ymT(endYm):Infinity;
+  const from=Math.max(s,nowT);
+  if(cycle==='year'){
+    const mon=+startYm.split('-')[1];
+    let y=Math.floor((from-1)/12);
+    let t=y*12+mon;
+    if(t<from){ y++; t=y*12+mon; }
+    return t<=e;
+  }
+  return from<=e;
+}
+/* ---- 周期消费：保存（编辑时自动固化已成立月份，年周期改月份会询问） ---- */
+async function saveRecur(){
+  const name=$('rcName').value.trim().slice(0,20);
+  const amount=round2(parseFloat($('rcAmt').value)||0);
+  const startYm=normYm($('rcStart').value);
+  const endYm=normYm($('rcEnd').value);
+  const cycle=rcCycleSel;
+  if(!startYm){ toast('请选择周期开始时间'); return; }
+  if(endYm&&ymT(endYm)<ymT(startYm)){ toast('结束时间不能早于开始时间'); return; }
+  if(!name&&!amount){ toast('请填写消费内容和金额'); return; }
+  const arr=recurArr();
+  const old=rcEditId? arr.find(x=>x.id===rcEditId) : null;
+  const nowK=nowKeyStr(), nowT=ymT(nowK);
+  let startFinal=startYm;
+  if(old){
+    const oldAmt=Math.max(0,+old.amount||0);
+    const os=normYm(old.startYm), oe=normYm(old.endYm);
+    const ost=os?ymT(os):Infinity, oet=oe?ymT(oe):-1;
+    /* 旧配置命中的已过月份：消费已成立，固化保留 */
+    (S.rows||[]).forEach(r=>{
+      const t=r.year*12+r.month;
+      if(t<nowT&&t>=ost&&t<=oet&&recurHits(old,r.year+'-'+r.month)) solidifyExtra(r.year+'-'+r.month,oldAmt);
+    });
+    /* 年周期改扣款月份：本年度按原月份还是新月份 */
+    if(cycle==='year'&&old.cycle==='year'&&os&&(+os.split('-')[1])!==(+startYm.split('-')[1])){
+      const oldMon=+os.split('-')[1], newMon=+startYm.split('-')[1];
+      const curYear=Math.floor((nowT-1)/12);
+      const oldThisY=curYear*12+oldMon;
+      if(oldThisY>=nowT){
+        const v=await ask3({
+          title:'调整扣款月份',
+          sub:curYear+' 年这笔按 '+oldMon+' 月还是 '+newMon+' 月？',
+          body:'扣款月份从 <b>'+oldMon+' 月</b> 改为 <b>'+newMon+' 月</b>。<br><br>'
+            +'<b>按原月份</b>：'+curYear+' 年 '+oldMon+' 月照常计入 ¥'+fmt(oldAmt,0)+'，新月份从 '+(curYear+1)+' 年开始；<br>'
+            +'<b>按新月份</b>：'+curYear+' 年改扣 '+newMon+' 月（若 '+oldMon+' 月还没到就不再扣）。',
+          yes:'按原月份', no:'按新月份'
+        });
+        if(v==='cancel') return;
+        if(v==='yes') solidifyExtra(curYear+'-'+oldMon,oldAmt);
+        startFinal=(v==='yes'? (curYear+1)+'-'+newMon : curYear+'-'+newMon);
+      }else{
+        /* 本年度的周期月已过（已扣款）：本年度不再按新月份扣，从下一年开始 */
+        startFinal=(curYear+1)+'-'+newMon;
+      }
+    }
+  }
+  if(!recurHasFuture(cycle,startFinal,endYm)){
+    /* 调整后已无未来扣款期（周期结束）：项目自动移除（历史月份金额已保留） */
+    if(old){ const i=arr.findIndex(x=>x.id===old.id); if(i>=0) arr.splice(i,1); delete rcFold[old.id]; }
+    if(saveStore()){ closeRecurForm(); refreshAll(); toast('周期已结束，该项目已自动移除；已扣款月份的金额保留不变'); }
+    return;
+  }
+  const data={name,amount,startYm:startFinal,endYm:endYm||'',cycle};
+  if(old){
+    Object.assign(old,data,{effFrom:nowK});   /* 编辑后的新配置只影响本期及以后 */
+    delete rcFold[old.id];
+  }else{
+    arr.push(Object.assign({id:'r'+Date.now().toString(36)+Math.floor(Math.random()*1e4)},data));
+  }
+  if(saveStore()){ closeRecurForm(); refreshAll(); toast((old?'周期消费已更新':'周期消费已添加')+'，金额已计入存钱计划'); }
+}
+/* ---- 周期消费：删除（已成立月份保留，本月视情况询问） ---- */
+async function deleteRecur(id){
+  const arr=recurArr(); const idx=arr.findIndex(x=>x.id===id); if(idx<0) return;
+  const R=arr[idx];
+  const nowK=nowKeyStr(), nowT=ymT(nowK);
+  const amt=Math.max(0,+R.amount||0);
+  const st=normYm(R.startYm)?ymT(normYm(R.startYm)):Infinity;
+  const e=normYm(R.endYm); const et=e?ymT(e):Infinity;
+  const hits=(S.rows||[]).map(r=>({k:r.year+'-'+r.month,t:r.year*12+r.month}))
+    .filter(h=>h.t>=st&&h.t<=et&&recurHits(R,h.k));
+  const curHit=hits.some(h=>h.t===nowT);
+  let keepCur=false;
+  if(curHit&&amt>0){
+    const v=await ask3({
+      title:'删除周期消费',
+      sub:'「'+(R.name||'消费')+'」¥'+fmt(amt,2)+' · 本月正逢扣款',
+      body:'本月（'+nowK.replace('-','年')+'月）的这笔 ¥'+fmt(amt,2)+' 是否已经消费、要保留在本月「其他支出」里？<br><br>'
+        +'<b>是</b>：保留，删除后本月金额不变；<br>'
+        +'<b>否</b>：本月也没消费，一并去掉；<br>'
+        +'<b>取消</b>：不删除。',
+      yes:'是', no:'否'
+    });
+    if(v==='cancel') return;
+    keepCur=(v==='yes');
+  }else{
+    const v=await ask3({
+      title:'删除周期消费',
+      sub:'「'+(R.name||'消费')+'」¥'+fmt(amt,2),
+      body:'确定删除？已经消费过的月份金额会保留不变，还没到的时间不再计入。',
+      yes:'删除', needNo:false
+    });
+    if(v!=='yes') return;
+  }
+  hits.forEach(h=>{ if(h.t<nowT) solidifyExtra(h.k,amt); });
+  if(curHit&&keepCur) solidifyExtra(nowK,amt);
+  delete rcFold[id];
+  arr.splice(idx,1);
+  if(saveStore()){ refreshAll(); toast('周期消费已删除'+(keepCur?'，本月金额已保留':'')); }
+}
+/* ---- 消费计划：表单与增删改 ---- */
+function openPlanForm(P){
+  pbEditId=P?P.id:null;
+  const f=$('planForm'); if(!f) return;
+  f.innerHTML='<div style="border-top:1px dashed #e3e9f2;margin-top:8px;padding-top:4px">'
+    +'<div class="rc-form-row">'
+    +'<label>项目名<input id="pbName" maxlength="20" value="'+esc(P&&P.name||'')+'" placeholder="如 双十一购物 / 旅游"></label>'
+    +'<label>金额（元）<input id="pbAmt" type="number" inputmode="decimal" value="'+(P?(+P.amount||0):'')+'" placeholder="0"></label>'
+    +'<label>消费时间（年月）<select id="pbYm">'+ymOptions(P&&P.ym||nowKeyStr(),null)+'</select></label></div>'
+    +'<div style="display:flex;gap:8px;margin-top:8px"><span style="flex:1"></span>'
+    +'<button class="btn-mini" id="pbCancel" type="button">取消</button><button class="btn-mini primary" id="pbSave" type="button">保存</button></div></div>';
+  f.style.display='block';
+}
+function closePlanForm(){ pbEditId=null; const f=$('planForm'); if(f){ f.style.display='none'; f.innerHTML=''; } }
+async function savePlanBuy(){
+  const name=$('pbName').value.trim().slice(0,20);
+  const amount=round2(parseFloat($('pbAmt').value)||0);
+  const ym=normYm($('pbYm').value);
+  if(!ym){ toast('请选择消费时间'); return; }
+  if(!name&&!amount){ toast('请填写项目名和金额'); return; }
+  const arr=planArr();
+  const old=pbEditId? arr.find(x=>x.id===pbEditId) : null;
+  const nowT=ymT(nowKeyStr());
+  if(old){
+    const oldAmt=Math.max(0,+old.amount||0), oldK=normYm(old.ym);
+    if(oldK&&ymT(oldK)<nowT&&oldAmt>0) solidifyExtra(oldK,oldAmt);   /* 已过时间的消费保留 */
+    Object.assign(old,{name,amount,ym,effFrom:nowKeyStr()});
+  }else{
+    arr.push({id:'p'+Date.now().toString(36)+Math.floor(Math.random()*1e4),name,amount,ym});
+  }
+  if(saveStore()){ closePlanForm(); refreshAll(); toast((old?'消费计划已更新':'消费计划已添加')+'，金额已计入 '+ym.replace('-','年')+'月'); }
+}
+async function deletePlanBuy(id){
+  const arr=planArr(); const idx=arr.findIndex(x=>x.id===id); if(idx<0) return;
+  const P=arr[idx];
+  const k=normYm(P.ym), nowK=nowKeyStr(), nowT=ymT(nowK);
+  const amt=Math.max(0,+P.amount||0);
+  if(k&&ymT(k)<nowT&&amt>0){
+    const f=k.split('-').map(Number);
+    const v=await ask3({
+      title:'删除消费计划',
+      sub:'「'+(P.name||'项目')+'」¥'+fmt(amt,2)+' · '+f[0]+'年'+f[1]+'月 已过',
+      body:'这笔消费的时间已过，金额已计入当月「其他支出」。<br><br>'
+        +'<b>是</b>：金额保留（已消费），只删除这条记录；<br>'
+        +'<b>否</b>：当月金额一并减去；<br>'
+        +'<b>取消</b>：不删除。',
+      yes:'是', no:'否'
+    });
+    if(v==='cancel') return;
+    if(v==='yes') solidifyExtra(k,amt);
+  }else if(k&&ymT(k)===nowT&&amt>0){
+    const v=await ask3({
+      title:'删除消费计划',
+      sub:'「'+(P.name||'项目')+'」¥'+fmt(amt,2)+' · 本月',
+      body:'本月这笔 ¥'+fmt(amt,2)+' 是否已经消费、要保留在本月「其他支出」里？',
+      yes:'是', no:'否'
+    });
+    if(v==='cancel') return;
+    if(v==='yes') solidifyExtra(k,amt);
+  }else{
+    const v=await ask3({title:'删除消费计划',sub:'「'+(P.name||'项目')+'」¥'+fmt(amt,2),
+      body:'确定删除？'+(k? '该笔金额会从 '+k.replace('-','.')+' 的「其他支出」中减去。':''),yes:'删除',needNo:false});
+    if(v!=='yes') return;
+  }
+  arr.splice(idx,1);
+  if(saveStore()){ refreshAll(); toast('消费计划已删除'); }
+}
+/* ---- 消费项卡片头部合计 ---- */
+function renderSpendTotals(){
+  const t=$('spendTotal'); if(t) t.textContent='每月 ¥'+fmt(expTotal(),0);
+}
+/* ---- 消费项：列表与表单交互 ---- */
+document.getElementById('recurList').addEventListener('click',e=>{
+  const fold=e.target.closest('[data-rc-fold]');
+  if(fold&&!e.target.closest('button')){ const id=fold.dataset.rcFold; rcFold[id]=!rcFold[id]; renderRecur(); return; }
+  const ed=e.target.closest('[data-rc-edit]');
+  if(ed){ e.stopPropagation(); if($('recurForm').style.display==='block'&&rcEditId===ed.dataset.rcEdit) closeRecurForm(); else openRecurForm(recurArr().find(x=>x.id===ed.dataset.rcEdit)); return; }
+  const del=e.target.closest('[data-rc-del]');
+  if(del){ e.stopPropagation(); deleteRecur(del.dataset.rcDel); return; }
+});
+document.getElementById('recurForm').addEventListener('click',e=>{
+  const cyc=e.target.closest('[data-rc-cyc]');
+  if(cyc){ rcCycleSel=cyc.dataset.rcCyc; document.querySelectorAll('#rcCycBox [data-rc-cyc]').forEach(b=>b.classList.toggle('primary',b.dataset.rcCyc===rcCycleSel)); return; }
+  if(e.target.closest('#rcCancel')){ closeRecurForm(); return; }
+  if(e.target.closest('#rcSave')){ saveRecur(); return; }
+});
+document.getElementById('planList').addEventListener('click',e=>{
+  const ed=e.target.closest('[data-pb-edit]');
+  if(ed){ e.stopPropagation(); if($('planForm').style.display==='block'&&pbEditId===ed.dataset.pbEdit) closePlanForm(); else openPlanForm(planArr().find(x=>x.id===ed.dataset.pbEdit)); return; }
+  const del=e.target.closest('[data-pb-del]');
+  if(del){ e.stopPropagation(); deletePlanBuy(del.dataset.pbDel); return; }
+});
+document.getElementById('planForm').addEventListener('click',e=>{
+  if(e.target.closest('#pbCancel')){ closePlanForm(); return; }
+  if(e.target.closest('#pbSave')){ savePlanBuy(); return; }
+});
 /* ---- 固定资产：渲染（房产/车辆/其他三组可折叠） ---- */
 let astFold={};
 function renderAssets(){
@@ -5188,7 +5672,7 @@ function refreshAll(){
   const sc=$('monScroll'), st=sc?sc.scrollTop:0, sl=sc?sc.scrollLeft:0;
   if(finSyncDues()) saveStore();     /* 月/年结算的理财：到期年月按「起投 + 周期」自动校正（先校正再算） */
   S=compute();
-  renderOverview(); renderAllCurrent(); renderSalaryNote(); renderExpense(); renderCheck(); renderPay(); renderCashYield(); renderAssets(); renderFloan(); renderAssetChart();
+  renderOverview(); renderAllCurrent(); renderSalaryNote(); renderExpense(); renderCheck(); renderPay(); renderCashYield(); renderAssets(); renderFloan(); renderAssetChart(); renderRecur(); renderPlanBuy(); renderSpendTotals();
   renderExtraRate();
   { const sp=$('autoHideSwPlan'), sl=$('autoHideSwLoan');
     if(sp) sp.checked=autoHideOn();
