@@ -660,7 +660,7 @@
     </div>
   </section>
 
-  <!-- 还款计划：按利率计息（贷款项目）+ 固定利息（朋友借款） -->
+  <!-- 还款计划：两个独立可折叠模块 -->
   <section class="view" id="view-loan">
     <div class="card" id="cardRate">
       <div class="card-h" id="rateHead" style="cursor:pointer;-webkit-tap-highlight-color:transparent" title="点击展开/折叠">
@@ -669,10 +669,12 @@
       </div>
       <div id="rateBody">
       <div id="loanList"><div style="font-size:12px;color:var(--ink-3);padding:6px 0">还没有贷款项目，点下方按钮添加。</div></div>
-      <div class="loan-add" style="padding:2px 0 14px"><button class="btn-mini primary" id="btnAddLoan">＋ 增加贷款项目</button></div>
-      <div style="border-top:1px dashed #e3e9f2;margin-bottom:12px"></div>
-      <div class="card-h" id="floanHead" style="cursor:pointer;-webkit-tap-highlight-color:transparent;margin-bottom:0" title="点击展开/折叠">
-        <div class="card-t" style="font-size:13.5px">固定利息</div>
+      <div class="loan-add" style="padding:2px 0 6px"><button class="btn-mini primary" id="btnAddLoan">＋ 增加贷款项目</button></div>
+      </div>
+    </div>
+    <div class="card" id="cardFloan">
+      <div class="card-h" id="floanHead" style="cursor:pointer;-webkit-tap-highlight-color:transparent" title="点击展开/折叠">
+        <div class="card-t">固定利息</div>
         <div class="card-s" style="display:flex;align-items:center;gap:6px"><span id="floanSub">未添加</span><i id="floanCaret" style="font-style: normal; font-size: 10px; line-height: 1; color: var(--ink-3); display: inline-block; transition: transform 0.2s; transform: rotate(-90deg);">▾</i></div>
       </div>
       <div id="floanBody" style="display: none;">
@@ -682,7 +684,6 @@
           <button class="btn-mini primary" id="btnAddFloan">＋ 添加借款</button>
         </div>
         <div style="font-size:10.5px;color:var(--ink-3);margin-top:6px">每个还款日的金额自动计入存钱计划对应月份的「其他支出」。每笔借款点标题可折叠。删除时：还款日在本月或以后的，会询问是否把剩余欠款一次性计入本月；已还过的月份金额保留不变。</div>
-      </div>
       </div>
     </div>
   </section>
@@ -2126,7 +2127,7 @@ applyIncBarOpen();
 applyDepBarOpen();
 
 /* 版本标识：发布新版本时改这里，设置页底部可见，便于确认“是否已更新到最新页面” */
-const APP_VER='v69';
+const APP_VER='v70';
 function renderAppVer(){
   const el=$('appVer'); if(!el) return;
   const t=curYM(), y=Math.floor((t-1)/12), m=(t-1)%12+1;
@@ -4594,16 +4595,17 @@ function renderAssetChart(){
 }
 /* ---- 交互绑定 ---- */
 (function bindFloan(){
-  const card=$('cardRate'); if(!card) return;
-  /* 按利率计息整卡折叠：状态记在本机（默认展开），折叠时只留标题 */
+  const card=$('cardFloan'); if(!card) return;
+  /* 「按利率计息」整卡折叠：状态记在本机（默认展开），与「固定利息」互相独立 */
+  const rateCard=$('cardRate');
   let rateFold=false; try{ rateFold=localStorage.getItem('rateFold')==='1'; }catch(e){}
   function applyRateFold(){
     const b=$('rateBody'); if(!b) return;
     b.style.display=rateFold?'none':'block';
     const c=$('rateCaret'); if(c) c.style.transform=rateFold?'rotate(-90deg)':'rotate(0deg)';
-    card.classList.toggle('is-collapsed',rateFold);
+    if(rateCard) rateCard.classList.toggle('is-collapsed',rateFold);
   }
-  $('rateHead').addEventListener('click',()=>{ rateFold=!rateFold; try{ localStorage.setItem('rateFold',rateFold?'1':'0'); }catch(e){} applyRateFold(); });
+  const rh=$('rateHead'); if(rh) rh.addEventListener('click',()=>{ rateFold=!rateFold; try{ localStorage.setItem('rateFold',rateFold?'1':'0'); }catch(e){} applyRateFold(); });
   applyRateFold();
   $('floanHead').addEventListener('click',()=>{
     const b=$('floanBody'); const open=b.style.display!=='none';
