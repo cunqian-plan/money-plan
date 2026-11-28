@@ -942,22 +942,22 @@
         <input type="file" id="fileImport" accept=".json" style="display:none">
       </div>
     </div>
-    <div class="card" id="cardAssets">
+    <div class="card is-collapsed" id="cardAssets">
       <div class="card-h" id="assetsHead" style="cursor:pointer;-webkit-tap-highlight-color:transparent" title="点击展开/折叠">
         <div class="card-t">固定资产明细</div>
-        <div class="card-s" style="display:flex;align-items:center;gap:6px"><span id="assetsSub">共 0 项</span><i id="assetsCaret" style="font-style: normal; font-size: 10px; line-height: 1; color: var(--ink-3); display: inline-block; transition: transform 0.2s; transform: rotate(0deg);">▾</i></div>
+        <div class="card-s" style="display:flex;align-items:center;gap:6px"><span id="assetsSub">共 0 项</span><i id="assetsCaret" style="font-style: normal; font-size: 10px; line-height: 1; color: var(--ink-3); display: inline-block; transition: transform 0.2s; transform: rotate(-90deg);">▾</i></div>
       </div>
-      <div id="assetsBody">
+      <div id="assetsBody" style="display: none;">
         <div id="assetsList"></div>
         <div style="font-size:10.5px;color:var(--ink-3);margin-top:6px">剩余价值 = 目前价值 ×（1 − 年折旧率）^已持有年数，随时间自动折减；房产在总资产里按 ×0.96 计。改动即时保存并同步云端。</div>
       </div>
     </div>
-    <div class="card" id="cardSync">
+    <div class="card is-collapsed" id="cardSync">
       <div class="card-h" id="syncHead" style="cursor:pointer;-webkit-tap-highlight-color:transparent" title="点击展开/折叠">
         <div class="card-t">多设备同步</div>
-        <div class="card-s" style="display:flex;align-items:center;gap:6px"><span id="ghSub">未连接</span><i id="ghCaret" style="font-style:normal;font-size:10px;line-height:1;color:var(--ink-3);display:inline-block;transition:transform .2s;transform:rotate(0deg)">▾</i></div>
+        <div class="card-s" style="display:flex;align-items:center;gap:6px"><span id="ghSub">未连接</span><i id="ghCaret" style="font-style:normal;font-size:10px;line-height:1;color:var(--ink-3);display:inline-block;transition:transform .2s;transform:rotate(-90deg)">▾</i></div>
       </div>
-      <div id="syncBody">
+      <div id="syncBody" style="display: none;">
         <div class="mp-hint" style="margin-bottom:10px">把数据存进你自己的 GitHub 私有仓库。换手机、换电脑打开同一网址，填一次配置就能自动同步回来。<b>令牌只存在这台设备上</b>，随时可在 GitHub 撤销。</div>
         <div class="edit-row"><span class="edit-lb">用户名</span><input id="ghOwner" class="edit-in" placeholder="github 用户名" autocapitalize="off" autocorrect="off" spellcheck="false"></div>
         <div class="edit-row"><span class="edit-lb">仓库名</span><input id="ghRepo" class="edit-in" placeholder="money-plan-data" autocapitalize="off" autocorrect="off" spellcheck="false"></div>
@@ -2294,7 +2294,7 @@ applyIncBarOpen();
 applyDepBarOpen();
 
 /* 版本标识：发布新版本时改这里，设置页底部可见，便于确认“是否已更新到最新页面” */
-const APP_VER='v77';
+const APP_VER='v78';
 function renderAppVer(){
   const el=$('appVer'); if(!el) return;
   const t=curYM(), y=Math.floor((t-1)/12), m=(t-1)%12+1;
@@ -4857,6 +4857,7 @@ function renderAssetChart(){
     const b=$('assetsBody'); const open=b.style.display!=='none';
     b.style.display=open?'none':'block';
     $('assetsCaret').style.transform=open?'rotate(-90deg)':'rotate(0deg)';
+    $('assetsHead').closest('.card').classList.toggle('is-collapsed', open);
   });
   host.addEventListener('click',e=>{
     const add=e.target.closest('[data-ast-add]');
@@ -6198,6 +6199,7 @@ window.addEventListener('orientationchange',()=>setTimeout(sizeTables,200));
     const open = body.style.display!=='none';
     body.style.display = open?'none':'block';
     if(caret) caret.style.transform = open?'rotate(-90deg)':'rotate(0deg)';
+    head.closest('.card').classList.toggle('is-collapsed', open);
   });
   const c0=ghCfg();
   if(c0){ $('ghOwner').value=c0.owner; $('ghRepo').value=c0.repo; $('ghToken').value=c0.token; $('ghPath').value=c0.path; }
