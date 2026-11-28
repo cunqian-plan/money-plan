@@ -464,7 +464,6 @@
   #payAllBody .kpi .v{font-size:16px}
   /* 现金收益计算：定期行 + 活期行 */
   .cy-sec-t{display:flex;align-items:baseline;justify-content:space-between;gap:8px;font-size:12px;font-weight:600;color:var(--ink-2);margin:2px 0 8px}
-  #cyDepSum{font-weight:400;font-size:11px;color:var(--ink-3)}
   #cySum{white-space:nowrap}
   #btnAddDep{width:100%;margin-top:2px;padding:9px 0;border-radius:11px}
   .dep-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));align-items:end;justify-content:start;gap:6px 8px;
@@ -480,7 +479,7 @@
   /* 自动生成的定期：只读展示行 + 模块参数行 */
   .dep-cfg{display:flex;gap:10px;flex-wrap:wrap;margin:4px 0 8px}
   .dep-cfg label{flex:1 1 110px;font-size:10.5px;color:var(--ink-2)}
-  .dep-cfg input{width:100%;height:26px;font-size:13px;border:none;border-bottom:1px solid #e3e9f2;padding:2px 0;background:transparent}
+  .dep-cfg input{width:100%;max-width:110px;height:26px;font-size:13px;border:none;border-bottom:1px solid #e3e9f2;padding:2px 0;background:transparent}
   .dep-auto{display:flex;flex-wrap:wrap;gap:3px 14px;padding:8px 2px;border-bottom:1px solid #f0f3f8;font-size:11px;color:var(--ink-3)}
   .dep-auto .da-f b{font-weight:600;color:var(--ink);margin-left:2px}
   .dep-auto .btn-mini{padding:3px 10px;font-size:10.5px}
@@ -581,12 +580,12 @@
   <!-- 概览 -->
   <section class="view" id="view-overview">
     <div class="kpi-grid" id="kpiGrid"></div>
-    <div class="card" id="cardAsset">
+    <div class="card is-collapsed" id="cardAsset">
       <div class="card-h" id="assetHead" style="cursor:pointer;-webkit-tap-highlight-color:transparent" title="点击展开/折叠">
         <div class="card-t">总资产走势</div>
-        <div class="card-s" style="display:flex;align-items:center;gap:6px"><span id="assetNote">单位：元</span><i id="assetCaret" style="font-style: normal; font-size: 10px; line-height: 1; color: var(--ink-3); display: inline-block; transition: transform 0.2s; transform: rotate(0deg);">▾</i></div>
+        <div class="card-s" style="display:flex;align-items:center;gap:6px"><span id="assetNote">单位：元</span><i id="assetCaret" style="font-style: normal; font-size: 10px; line-height: 1; color: var(--ink-3); display: inline-block; transition: transform 0.2s; transform: rotate(-90deg);">▾</i></div>
       </div>
-      <div id="assetBody">
+      <div id="assetBody" style="display: none;">
         <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px">
           <button class="btn-mini primary" data-astmode="month">按月</button>
           <button class="btn-mini" data-astmode="year">按年</button>
@@ -646,6 +645,16 @@
         <div class="card-s" style="display:flex;align-items:center;gap:6px"><span id="msSum"></span><i id="msCaret" style="font-style: normal; font-size: 10px; line-height: 1; color: var(--ink-3); display: inline-block; transition: transform 0.2s; transform: rotate(-90deg);">▾</i></div>
       </div>
       <div id="msBody" style="display: none;"><div id="milestones"><div style="font-size:12px;color:var(--ink-3)">月份已全部删除，可在「存款」页新增。</div></div></div>
+    </div>
+    <div class="card is-collapsed" id="cardYearCmp">
+      <div class="card-h" id="yearCmpHead" style="cursor:pointer;-webkit-tap-highlight-color:transparent" title="点击展开/折叠">
+        <div class="card-t">年度对比</div>
+        <div class="card-s" style="display:flex;align-items:center;gap:6px"><span id="yearCmpNote">收入 · 支出 · 净结余</span><i id="yearCmpCaret" style="font-style: normal; font-size: 10px; line-height: 1; color: var(--ink-3); display: inline-block; transition: transform 0.2s; transform: rotate(-90deg);">▾</i></div>
+      </div>
+      <div id="yearCmpBody" style="display: none;">
+        <div id="yearCmp"></div>
+        <div style="font-size:10.5px;color:var(--ink-3);margin-top:6px">收入 = 工资 + 公积金 + 收益 + 其他收入；支出 = 生活支出 + 其他支出 + 还贷 + 提前还款；净结余 = 收入 − 支出。金额下的小字是与上一年的同比变化，绿=朝好的方向变，红=变差。只显示有记录的年份，数据随存钱计划实时联动。</div>
+      </div>
     </div>
   </section>
 
@@ -1127,10 +1136,9 @@
     <div class="card" id="cardCashYield">
       <div class="card-h" id="cyHead" style="cursor:pointer;-webkit-tap-highlight-color:transparent" title="点击展开/折叠">
         <div class="card-t">定期明细</div>
-        <div class="card-s" style="display:flex;align-items:center;gap:6px"><span id="cySum" title="仅统计本期（2026.11）之前已存入、尚未到期的定期">暂无已存定期收益</span><i id="cyCaret" style="font-style: normal; font-size: 10px; line-height: 1; color: var(--ink-3); display: inline-block; transition: transform 0.2s; transform: rotate(0deg);">▾</i></div>
+        <div class="card-s" style="display:flex;align-items:center;gap:6px"><span id="cySum" title="只统计本期及之前已锁定的定期（含往期补录），未来月份尚未锁定的不计入">暂无已锁定定期</span><i id="cyCaret" style="font-style: normal; font-size: 10px; line-height: 1; color: var(--ink-3); display: inline-block; transition: transform 0.2s; transform: rotate(0deg);">▾</i></div>
       </div>
       <div id="cyBody" style="">
-        <div class="cy-sec-t"><span>定期存款（自动生成）</span><span id="cyDepSum" title="按存钱计划各月月底结余自动计算"></span></div>
         <div class="dep-cfg" id="depCfgRow">
           <label>活期预留（元）<input class="edit-in dep-cfg-in" data-k="keep" inputmode="decimal" id="depKeep"></label>
           <label>存期（年）<input class="edit-in dep-cfg-in" data-k="years" inputmode="decimal" id="depYears"></label>
@@ -1250,9 +1258,10 @@
   <div class="modal-mask" data-close=""></div>
   <div class="modal-panel" style="max-height:78vh;overflow:auto">
     <div class="mp-head">
-      <div><b>恢复历史数据</b><div class="mp-sub">云端自动留档 · 选一个时间点整体恢复</div></div>
+      <div><b>恢复历史数据</b><div class="mp-sub">自动留档 · 选一个时间点整体恢复</div></div>
       <button class="mp-x" data-close="">✕</button>
     </div>
+    <div id="snapLocal" style="padding:4px 2px 0"></div>
     <div id="snapList" style="padding:4px 2px 10px"></div>
   </div>
 </div>
@@ -1512,12 +1521,57 @@ function trimUndoForQuota(){
     try{ s=JSON.stringify(store); }catch(e){ return; }
   }
 }
+/* ================= 本机自动留档：防误操作兜底 =================
+   导入备份、恢复历史、清空重记、云端覆盖本机之前都会自动留一份快照；
+   日常改动每 10 分钟也留一份（数据没变不重复留），最多保留 5 份。
+   与「历史撤销」的区别：留档写在本机另一个存储键里，撤销栈被清掉/数据被覆盖后仍能找回。 */
+const BAK_KEY='depositPlan.bak';
+let _lastSnapT=0;
+function localSnaps(){
+  try{ const a=JSON.parse(localStorage.getItem(BAK_KEY)||'[]'); return Array.isArray(a)?a:[]; }
+  catch(e){ return []; }
+}
+function snapLabelT(t){
+  const d=new Date(t), p=n=>String(n).padStart(2,'0');
+  return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes());
+}
+function snapLocalBackup(force){
+  try{
+    const c=Object.assign({},store); delete c.undo;   /* 留档不含撤销栈：省空间且避免嵌套 */
+    const s=JSON.stringify(c);
+    const arr=localSnaps();
+    const last=arr[arr.length-1];
+    if(!force && last && last.s===s) return;          /* 数据没变不重复留档 */
+    arr.push({t:Date.now(), s:s});
+    while(arr.length>5) arr.shift();
+    while(true){
+      try{ localStorage.setItem(BAK_KEY, JSON.stringify(arr)); break; }
+      catch(e){ if(arr.length>1) arr.shift(); else break; }   /* 空间不足丢最旧的再试 */
+    }
+  }catch(e){}
+}
+function restoreLocalSnap(i){
+  const s=localSnaps()[i]; if(!s) return;
+  let d=null; try{ d=JSON.parse(s.s); }catch(e){}
+  if(!d||typeof d!=='object'){ toast('留档数据无效'); return; }
+  if(!confirm('恢复到本机留档 '+snapLabelT(s.t)+' 的数据？\n\n当前数据会先自动留一份新档，不会丢。')) return;
+  snapLocalBackup(true);
+  const _u=Array.isArray(store.undo)?store.undo:[];
+  store=d;
+  if(!Array.isArray(store.undo)) store.undo=_u;
+  migratePrepayStore();
+  try{ localStorage.setItem(LS_KEY, JSON.stringify(store)); }catch(e){}
+  saveStore(); refreshAll();
+  const m=$('snapModal'); if(m) m.classList.remove('on');
+  toast('已恢复到 '+snapLabelT(s.t).slice(5)+' 的数据');
+}
 function saveStore(){
   store.updatedAt=Date.now();
   pushUndo();
   trimUndoForQuota();
   let ok=true;
   try{ localStorage.setItem(LS_KEY, JSON.stringify(store)); }catch(e){ ok=false; }
+  if(Date.now()-_lastSnapT>600000){ _lastSnapT=Date.now(); snapLocalBackup(); }   /* 日常改动每 10 分钟留一份本机快照 */
   cloudSync();
   return ok;
 }
@@ -1568,6 +1622,7 @@ function syncJudge(remote){
 }
 /* 采用云端数据整体替换本机：迁移老结构、写本机、记同步游标、刷新界面 */
 function adoptRemote(remote){
+  snapLocalBackup(true);   /* 云端数据覆盖本机前自动留一份快照，误拉取可找回 */
   store=remote;
   const m1=migratePrepayStore(), m2=migrateGone(), m3=migrateLoans();
   if(m1||m2||m3) store.updatedAt=Date.now();
@@ -2046,7 +2101,7 @@ let curLoanYear = 'all';   // 房贷页年份筛选
 let rowKey = null;   // 当前在底部面板编辑的行
 
 /* ====== 预计定期存款年总收益：每笔定期收益计入「到期年月所在的那一年」，按年汇总 ====== */
-let depBarOpen = localStorage.getItem('depBarOpen')!=='0';
+let depBarOpen=false;   /* 刷新后所有可折叠模块一律默认折叠（不再记忆上次状态） */
 let depBarTotal = 0;
 function depBarData(){
   const m={};
@@ -2093,10 +2148,69 @@ $('depBarHead').addEventListener('click',()=>{
   applyDepBarOpen();
 });
 
+/* ================= 年度对比：各年收入/支出/净结余/年末结余 + 同比 ================= */
+let yearCmpOpen=false;
+function yearCmpData(){
+  const m={};
+  S.rows.forEach(r=>{
+    const o=m[r.year]||(m[r.year]={inc:0,cost:0,end:0,n:0});
+    o.inc+=r.salary+r.fund+r.extra+(r.inc||0);
+    o.cost+=r.living+r.other+r.loan+(r.prepay||0);
+    o.end=r.end; o.n++;
+  });
+  return Object.keys(m).map(Number).sort((a,b)=>a-b).map(y=>{
+    const o=m[y]; return {y:y, n:o.n, inc:round2(o.inc), cost:round2(o.cost), net:round2(o.inc-o.cost), end:round2(o.end)};
+  });
+}
+function renderYearCmp(){
+  const host=$('yearCmp'); if(!host) return;
+  const data=yearCmpData();
+  const note=$('yearCmpNote');
+  if(note) note.textContent = data.length? (data.length+' 个年度 · 累计净结余 ¥'+fmt(round2(data.reduce((s,d)=>s+d.net,0)),0)) : '收入 · 支出 · 净结余';
+  if(!data.length){ host.innerHTML='<div style="font-size:12px;color:var(--ink-3);padding:2px 0 8px">暂无数据，在「存钱计划」页新增月份后自动汇总。</div>'; return; }
+  const TD='padding:7px 5px;border-bottom:1px dashed #edf2f8;white-space:nowrap';
+  /* 同比小字：upGood=true 时增加为绿色（收入/净结余），false 时增加为红色（支出） */
+  const sub=(v,pv,upGood)=>{
+    if(pv==null) return '<span style="color:var(--ink-3)">首年</span>';
+    const diff=round2(v-pv);
+    if(Math.abs(diff)<0.005) return '<span style="color:var(--ink-3)">同比持平</span>';
+    const pc=Math.round(Math.abs(diff)/Math.abs(pv)*100);
+    const good=(diff>0)===!!upGood;
+    return '<span style="font-size:10px;color:'+(good?'var(--mint)':'var(--red)')+'">'+(diff>0?'↑':'↓')+pc+'%</span>';
+  };
+  const f0=v=>'¥'+fmt(v,0);
+  const rows=data.map((d,i)=>{
+    const p=i? data[i-1] : null;
+    return '<tr>'
+      +'<td style="'+TD+';text-align:left;font-weight:600">'+d.y+(d.n<12?'<span style="font-weight:400;color:var(--ink-3)">（'+d.n+'个月）</span>':'')+'</td>'
+      +'<td style="'+TD+'"><b class="num">'+f0(d.inc)+'</b><br>'+sub(d.inc,p?p.inc:null,true)+'</td>'
+      +'<td style="'+TD+'"><b class="num">'+f0(d.cost)+'</b><br>'+sub(d.cost,p?p.cost:null,false)+'</td>'
+      +'<td style="'+TD+'"><b class="num" style="color:'+(d.net>=0?'var(--mint)':'var(--red)')+'">'+f0(d.net)+'</b><br>'+sub(d.net,p?p.net:null,true)+'</td>'
+      +'<td style="'+TD+'"><b class="num">'+f0(d.end)+'</b><br><span style="font-size:10px;color:var(--ink-3)">'+d.n+'个月末</span></td>'
+      +'</tr>';
+  }).join('');
+  host.innerHTML='<div style="overflow-x:auto;-webkit-overflow-scrolling:touch"><table style="width:100%;min-width:380px;border-collapse:collapse;font-size:12px;text-align:center">'
+    +'<thead><tr style="color:var(--ink-3);font-size:10.5px;font-weight:400">'
+    +'<th style="text-align:left;padding:2px 5px 6px">年份</th><th style="padding:2px 5px 6px">总收入</th><th style="padding:2px 5px 6px">总支出</th><th style="padding:2px 5px 6px">净结余</th><th style="padding:2px 5px 6px">年末结余</th>'
+    +'</tr></thead><tbody>'+rows+'</tbody></table></div>';
+}
+function applyYearCmpOpen(){
+  const body=$('yearCmpBody'); if(!body) return;
+  body.style.display = yearCmpOpen ? '' : 'none';
+  const c=$('yearCmpCaret'); if(c) c.style.transform = yearCmpOpen ? 'rotate(0deg)' : 'rotate(-90deg)';
+  const card=$('cardYearCmp'); if(card) card.classList.toggle('is-collapsed', !yearCmpOpen);
+}
+$('yearCmpHead').addEventListener('click',()=>{
+  yearCmpOpen=!yearCmpOpen;
+  try{ localStorage.setItem('yearCmpOpen', yearCmpOpen?'1':'0'); }catch(e){}
+  applyYearCmpOpen();
+});
+applyYearCmpOpen();
+
 /* ====== 全年收入趋势：按年汇总 工资+公积金+收益+其他收入，折线图 ======
    口径与「收入测算」页年度收入一致；已过月份虽然在存款计划页隐藏，但数据仍参与汇总（历史年份保留）。
    只要该年有收入数据就显示（起始年可能只有几个月，图上用空心点标注为「未满 12 个月」） */
-let incBarOpen = localStorage.getItem('incBarOpen')!=='0';
+let incBarOpen=false;
 let incBarTotal = 0;
 let incHasPart = false;      /* 是否存在记录不满 12 个月的年份（年份标签上打 * 说明） */
 function incBarData(){
@@ -2180,7 +2294,7 @@ applyIncBarOpen();
 applyDepBarOpen();
 
 /* 版本标识：发布新版本时改这里，设置页底部可见，便于确认“是否已更新到最新页面” */
-const APP_VER='v75';
+const APP_VER='v77';
 function renderAppVer(){
   const el=$('appVer'); if(!el) return;
   const t=curYM(), y=Math.floor((t-1)/12), m=(t-1)%12+1;
@@ -2193,6 +2307,7 @@ function renderOverview(){
   const rows=S.rows;
   renderDepBars();
   renderIncBars();
+  renderYearCmp();
   if(!rows.length){ $('heroValue').textContent='暂无数据'; $('heroStart').textContent='—'; $('heroPrepay').textContent='—'; $('heroMonths').textContent='0 个月'; $('kpiGrid').innerHTML=''; $('bars').innerHTML=''; $('msSum').textContent=''; window.__peakMax=0; renderPeakNote(); $('milestones').innerHTML='<div style="font-size:12px;color:var(--ink-3)">月份已全部删除，可在「存款」页新增。</div>'; $('prepaySum').textContent=''; $('prepayList').innerHTML='<div style="font-size:12px;color:var(--ink-3);padding:6px 0 2px">暂无提前还款记录，在存款页「提前还款」列填入金额后自动汇总。</div>'; return; }
   const last=rows[rows.length-1];
   const allPlan=S.planAll||S.plan;
@@ -3270,6 +3385,7 @@ $('btnWipe').addEventListener('click',()=>{
   if(!requireUnlock()) return;
   if(!confirm('清空存钱计划的全部月度记录？\n所有月份的工资、支出、结余等填写数据会全部删除，内置计划行也不再显示，之后用「＋ 新增一年」从当前月开始重新记录。\n贷款项目、理财、定期存款不受影响。')) return;
   if(!confirm('再次确认：真的要清空全部月度记录吗？\n清空后可在设置页「历史撤销」里恢复。')) return;
+  snapLocalBackup(true);   /* 清空前留一份本机快照，「恢复历史数据」里可整体找回 */
   ['edits','added','removed','prevEdits','check','pastPay','gone'].forEach(f=>{ delete store[f]; });
   delete store.start;
   store.wiped=true;
@@ -3324,7 +3440,6 @@ applyLockBtn();
 
 /* ---------- 个人信息（生日）：概览图表年龄按设置的生日计算 ---------- */
 let profileOpen=false;
-try{ profileOpen=localStorage.getItem('profileOpen')==='1'; }catch(e){}
 function applyProfileOpen(){
   const b=$('profileBody'); if(!b) return;
   b.style.display=profileOpen?'':'none';
@@ -3549,6 +3664,7 @@ async function restoreSnap(name){
     if(!data||typeof data!=='object') throw 0;
     const n=(data.deposits||[]).length, ne=Object.keys(data.edits||{}).length, na=(data.added||[]).length;
     if(!confirm('恢复到 '+snapLabel(name)+' 的数据？\n\n· 定期存款 '+n+' 笔 · 修改记录 '+ne+' 条 · 新增月份 '+na+' 个月\n· 当前数据中不在该存档里的修改会被覆盖（恢复前云端会再留一份新档）')) return;
+    snapLocalBackup(true);   /* 恢复前把当前数据留一份本机快照 */
     const _u=Array.isArray(store.undo)?store.undo:[];
     store=data;
     if(!Array.isArray(store.undo)) store.undo=_u;   /* 云端存档若不含撤销栈，保留本机的 */
@@ -3559,10 +3675,20 @@ async function restoreSnap(name){
     toast('已恢复到 '+snapLabel(name).slice(5)+' 的数据');
   }catch(e){ toast('读取存档失败，请稍后再试'); }
 }
+/* 本机留档列表：任何模式都可用，最多 5 份 */
+function renderLocalSnaps(){
+  const host=$('snapLocal'); if(!host) return;
+  const arr=localSnaps();
+  if(!arr.length){ host.innerHTML='<div style="font-size:11px;color:var(--ink-3);padding:6px 2px 2px">暂无本机留档。导入备份、恢复数据、清空重记、云端覆盖本机前会自动留一份；日常改动每 10 分钟也会留一份（最多 5 份）。</div>'; return; }
+  host.innerHTML='<div class="snap-day">本机留档（最新 '+arr.length+' 份）</div><div class="snap-g">'
+    +arr.map((s,i)=>'<button class="snap-it" data-lsnap="'+i+'">'+snapLabelT(s.t).slice(5)+'<span>恢复到该时点</span></button>').join('')
+    +'</div>';
+}
 $('btnSnapList').addEventListener('click',()=>{
-  if(!cloudAvail()){ toast('未连接云端，暂无云端存档'); return; }
-  if(ghReady()){ toast('GitHub 同步模式不带云端存档；要看历史版本，去仓库的提交记录里找 data.json 的旧版'); return; }
-  $('snapModal').classList.add('on'); loadSnaps();
+  $('snapModal').classList.add('on');
+  renderLocalSnaps();                          /* 本机留档任何模式都显示 */
+  if(!ghReady() && CLOUD_ON) loadSnaps();      /* 旧服务端模式的云端存档 */
+  if(ghReady() && !$('snapLocal').innerHTML.trim()) renderLocalSnaps();
 });
 /* 撤销上一步：恢复最近一次保存前的数据快照（不影响分钟级云端存档） */
 /* 撤销步骤的摘要：对比新旧数据，给出「改了什么」 */
@@ -3642,7 +3768,9 @@ $('btnUndo').addEventListener('click',()=>{
 });
 $('snapModal').addEventListener('click',e=>{
   if(e.target.closest('[data-close]')){ $('snapModal').classList.remove('on'); return; }
-  const b=e.target.closest('.snap-it');
+  const lb=e.target.closest('[data-lsnap]');
+  if(lb){ restoreLocalSnap(+lb.dataset.lsnap); return; }
+  const b=e.target.closest('[data-snap]');
   if(b) restoreSnap(b.dataset.snap);
 });
 
@@ -3654,19 +3782,36 @@ function doImport(txt){
     store=d; if(saveStore()){ refreshAll(); toast('备份已导入'); }
   }catch(err){ toast('内容格式不正确'); }
 }
-/* 存储能力检测：不支持 localStorage 时显示警示条 */
-try{ localStorage.setItem('dpTest','1'); localStorage.removeItem('dpTest'); }
-catch(e){ $('storeWarn').style.display=''; }
+/* 导入防呆：生成数据摘要（范围/各模块条数），导入前与当前数据并排展示，确认后才覆盖 */
+function storeBrief(d){
+  if(!d||typeof d!=='object') return '（无效数据）';
+  const ts=[];
+  Object.keys(d.edits||{}).forEach(k=>{ const m=String(k).match(/^(\d{4})-(\d{1,2})$/); if(m) ts.push(+m[1]*12+ +m[2]); });
+  (d.added||[]).forEach(a=>{ if(a&&+a.year>2000&&+a.month>=1&&+a.month<=12) ts.push(+a.year*12+ +a.month); });
+  const ym=t=>Math.floor((t-1)/12)+'.'+((t-1)%12+1);
+  const rng=ts.length? ym(Math.min.apply(null,ts))+' ~ '+ym(Math.max.apply(null,ts)) : '—';
+  const nAst=Object.keys(d.assets||{}).reduce((s,k)=>s+(Array.isArray(d.assets[k])?d.assets[k].length:0),0);
+  return '数据范围 '+rng+' · 修改 '+Object.keys(d.edits||{}).length+' 个月 · 新增 '+(d.added||[]).length+' 个月\n'
+    +'定期 '+((d.depLocks||[]).length+(d.deposits||[]).length)+' 笔 · 贷款 '+(d.loans||[]).length+' 笔 · 固定利息 '+(d.floan||[]).length+' 笔 · 理财 '+(d.finances||[]).length+' 笔\n'
+    +'周期消费 '+(d.recur||[]).length+' 项 · 消费计划 '+(d.planBuy||[]).length+' 项 · 固定资产 '+nAst+' 项'
+    +(d.updatedAt? '\n备份时间：'+new Date(+d.updatedAt).toLocaleString('zh-CN') : '');
+}
 $('fileImport').addEventListener('change',e=>{
   const f=e.target.files[0]; if(!f)return;
   const rd=new FileReader();
-  rd.onload=()=>{ try{
-      const d=JSON.parse(rd.result);
-      if(typeof d!=='object'||d===null) throw 0;
-      store=d; if(saveStore()){ refreshAll(); toast('备份已导入'); }
-    }catch(err){ toast('文件格式不正确'); } };
+  rd.onload=()=>{ let d;
+    try{ d=JSON.parse(rd.result); if(!d||typeof d!=='object'||Array.isArray(d)) throw 0; }
+    catch(err){ toast('文件格式不正确'); return; }
+    if(isEmptyStore(d)){ toast('备份文件里没有可导入的数据'); return; }
+    if(!confirm('请核对要导入的备份内容，导入后整体覆盖当前数据：\n\n―― 备份文件 ――\n'+storeBrief(d)+'\n\n―― 当前数据 ――\n'+storeBrief(store)+'\n\n覆盖前会自动把当前数据留一份本机快照（「恢复历史数据」里可找回）。')) return;
+    snapLocalBackup(true);
+    store=d; if(saveStore()){ refreshAll(); toast('备份已导入'); }
+  };
   rd.readAsText(f); e.target.value='';
 });
+/* 存储能力检测：不支持 localStorage 时显示警示条 */
+try{ localStorage.setItem('dpTest','1'); localStorage.removeItem('dpTest'); }
+catch(e){ $('storeWarn').style.display=''; }
 $('autoHideSwPlan').addEventListener('change',e=>{
   store.autoHidePlan=e.target.checked;
   if(saveStore()){ refreshAll(); toast(e.target.checked?'存钱计划：已隐藏往期月份':'存钱计划：已显示全部月份'); }
@@ -3761,7 +3906,7 @@ $('bars').addEventListener('click',e=>{
   $('monScroll').scrollTop=0;
 });
 /* 提前还款一览：点标题折叠/展开，状态记在本机（默认折叠，只看标题与总览） */
-let ppOpen = localStorage.getItem('ppOpen')==='1';
+let ppOpen=false;
 function applyPpOpen(){
   const body=$('prepayBody'); if(!body) return;
   body.style.display = ppOpen ? '' : 'none';
@@ -3775,7 +3920,7 @@ $('prepayHead').addEventListener('click',()=>{
 });
 applyPpOpen();
 /* 年末存款余额：点标题折叠/展开，状态记在本机（默认展开；收起时右侧显示最高值） */
-let barsOpen = localStorage.getItem('barsOpen')!=='0';
+let barsOpen=false;
 function renderPeakNote(){
   const el=$('peakNote'); if(!el) return;
   el.textContent = barsOpen
@@ -3796,7 +3941,7 @@ $('barsHead').addEventListener('click',()=>{
 });
 applyBarsOpen();
 /* 关键节点：点标题折叠/展开，状态记在本机（默认折叠，右侧显示房贷结清月份） */
-let msOpen = localStorage.getItem('msOpen')==='1';
+let msOpen=false;
 function applyMsOpen(){
   const body=$('msBody'); if(!body) return;
   body.style.display = msOpen ? '' : 'none';
@@ -3810,7 +3955,7 @@ $('msHead').addEventListener('click',()=>{
 });
 applyMsOpen();
 /* 每月工资持平线：同样可折叠，状态记在本机（默认折叠） */
-let salOpen = localStorage.getItem('salOpen')==='1';
+let salOpen=false;
 function applySalOpen(){
   const body=$('salBody'); if(!body) return;
   body.style.display = salOpen ? '' : 'none';
@@ -3824,7 +3969,7 @@ $('salHead').addEventListener('click',()=>{
 });
 applySalOpen();
 /* 数据管理：同样可折叠，状态记在本机（默认折叠） */
-let mgmtOpen = localStorage.getItem('mgmtOpen')==='1';
+let mgmtOpen=false;
 function applyMgmtOpen(){
   const body=$('mgmtBody'); if(!body) return;
   body.style.display = mgmtOpen ? '' : 'none';
@@ -3838,7 +3983,7 @@ $('mgmtHead').addEventListener('click',()=>{
 });
 applyMgmtOpen();
 /* 数据修改：三项批量修改合并为一张卡，可折叠，状态记在本机（默认折叠） */
-let editOpen = localStorage.getItem('editOpen')==='1';
+let editOpen=false;
 function applyEditOpen(){
   const body=$('editBody'); if(!body) return;
   body.style.display = editOpen ? '' : 'none';
@@ -3852,7 +3997,7 @@ $('editHead').addEventListener('click',()=>{
 });
 applyEditOpen();
 /* 工资计算 → 每月到手明细表：可折叠，状态记在本机（默认展开） */
-let payTblOpen = localStorage.getItem('payTblOpen')!=='0';
+let payTblOpen=false;
 function applyPayTblOpen(){
   const body=$('payTblBody'); if(!body) return;
   body.style.display = payTblOpen ? '' : 'none';
@@ -3866,7 +4011,7 @@ $('payTblHead').addEventListener('click',()=>{
 });
 applyPayTblOpen();
 /* 收入测算大卡：整体可折叠，状态记在本机（默认展开；收起后右侧仍显示全年到手） */
-let payAllOpen = localStorage.getItem('payAllOpen')!=='0';
+let payAllOpen=false;
 function applyPayAllOpen(){
   const body=$('payAllBody'); if(!body) return;
   body.style.display = payAllOpen ? '' : 'none';
@@ -3880,7 +4025,7 @@ $('payAllHead').addEventListener('click',()=>{
 });
 applyPayAllOpen();
 /* 现金收益计算：同样可折叠，状态记在本机（默认展开） */
-let cyOpen = localStorage.getItem('cyOpen')!=='0';
+let cyOpen=false;
 function applyCyOpen(){
   const body=$('cyBody'); if(!body) return;
   body.style.display = cyOpen ? '' : 'none';
@@ -3894,7 +4039,7 @@ $('cyHead').addEventListener('click',()=>{
 });
 applyCyOpen();
 /* 消费项模块：可折叠，状态记在本机（默认折叠）；内部三个子块各自可折叠 */
-let exOpen = localStorage.getItem('exOpen')==='1';
+let exOpen=false;
 function applyExOpen(){
   const body=$('spendBody'); if(!body) return;
   body.style.display = exOpen ? '' : 'none';
@@ -3920,7 +4065,7 @@ document.querySelectorAll('[data-sp-fold]').forEach(h=>{
 $('btnAddRecur').addEventListener('click',e=>{ e.stopPropagation(); if($('recurForm').style.display==='block'){ closeRecurForm(); } else openRecurForm(null); });
 $('btnAddPlan').addEventListener('click',e=>{ e.stopPropagation(); if($('planForm').style.display==='block'){ closePlanForm(); } else openPlanForm(null); });
 /* 数据备份：同样可折叠，状态记在本机（默认折叠） */
-let bkOpen = localStorage.getItem('bkOpen')==='1';
+let bkOpen=false;
 function applyBkOpen(){
   const body=$('bkBodyWrap'); if(!body) return;
   body.style.display = bkOpen ? '' : 'none';
@@ -4657,7 +4802,7 @@ function renderAssetChart(){
   const card=$('cardFloan'); if(!card) return;
   /* 「按利率计息」整卡折叠：状态记在本机（默认展开），与「固定利息」互相独立 */
   const rateCard=$('cardRate');
-  let rateFold=false; try{ rateFold=localStorage.getItem('rateFold')==='1'; }catch(e){}
+  let rateFold=true;   /* 刷新后默认折叠（rateFold=true=折叠） */
   function applyRateFold(){
     const b=$('rateBody'); if(!b) return;
     b.style.display=rateFold?'none':'block';
@@ -4761,6 +4906,7 @@ function renderAssetChart(){
     const b=$('assetBody'); const open=b.style.display!=='none';
     b.style.display=open?'none':'block';
     $('assetCaret').style.transform=open?'rotate(-90deg)':'rotate(0deg)';
+    h.closest('.card').classList.toggle('is-collapsed', open);
     if(!open) setTimeout(renderAssetChart,40);
   });
   /* 按月/按年切换 */
@@ -5778,14 +5924,16 @@ function updateDepCashCells(){
 }
 function updateCashYield(){
   const now=curYM();
-  const live=depList().filter(d=>{ const dt=depDueT(d); return dt==null||dt>=now; });
-  const gainAll=round2(live.reduce((a,d)=>a+depGain(d),0));
-  const total=round2(live.reduce((a,d)=>a+(+d.amt||0),0));
-  const tip='按存钱计划各月月底结余自动生成，随其变动自动更新';
+  /* 顶部统计口径：只统计「本期及之前已锁定」的定期（含往期补录），未来月份尚未锁定生成的不计入；
+     已到期的不算「预计」收益。支取后 rec.amt 已按剩余金额记录，收益随剩余金额重算 */
+  const locked=depLocksArr().filter(d=>{
+    const ft=depFromT(d), dt=depDueT(d);
+    return (ft==null||ft<=now) && (dt==null||dt>=now);
+  });
+  const gainAll=round2(locked.reduce((a,d)=>a+depGain(d),0));
+  const tip='只统计本期及之前已锁定的定期（含往期补录），未来尚未锁定的不计入';
   const cs=$('cySum');
-  if(cs){ cs.textContent = live.length ? (live.length+' 笔 · 预计到期收益 ¥'+fmt(gainAll,0)) : '暂无自动定期'; cs.title=tip; }
-  const ds=$('cyDepSum');
-  if(ds){ ds.textContent = live.length ? ('合计 ¥'+fmt(total,0)) : ''; ds.title=tip; }
+  if(cs){ cs.textContent = locked.length ? (locked.length+' 笔已锁定 · 预计到期收益 ¥'+fmt(gainAll,0)) : '暂无已锁定定期'; cs.title=tip; }
 }
 /* 定期参数变化后：立即重算存款计划与概览（收益列随之刷新），不动定期输入框、避免打断输入 */
 let _depTimer=null;
@@ -5974,7 +6122,7 @@ $('btnAddFin').addEventListener('click',()=>{
   if(cards.length) cards[cards.length-1].focus();
 });
 /* 理财卡片折叠：状态记在本机 */
-let finOpen = localStorage.getItem('finOpen')!=='0';
+let finOpen=false;
 function applyFinOpen(){
   const b=$('finBody'); if(b) b.style.display=finOpen?'':'none';
   if($('finCaret')) $('finCaret').style.transform=finOpen?'rotate(0deg)':'rotate(-90deg)';
@@ -6124,6 +6272,20 @@ window.addEventListener('orientationchange',()=>setTimeout(sizeTables,200));
 refreshAll();
 cloudPull();
 startAutoPull();   /* 切回页面 / 定时静默检查：其他设备改过就自动更新，不必反复刷新 */
+/* 备份提醒：每天最多弹一次。已连云端的检查上次成功同步时间；未连接的提醒本机数据风险 */
+(function backupReminder(){
+  try{
+    const RK='depositPlan.remind';
+    const last=+(localStorage.getItem(RK)||0);
+    if(Date.now()-last<86400000) return;
+    localStorage.setItem(RK,String(Date.now()));
+    if(ghReady()){
+      if(+store.syncAt && Date.now()-(+store.syncAt)>3*86400000) toast('距上次成功同步已超过 3 天，建议检查网络与云同步状态');
+    }else if(!CLOUD_ON){
+      toast('数据仅存在本机浏览器，建议在「更多 → 数据管理」定期导出备份');
+    }
+  }catch(e){}
+})();
 if(!cloudAvail()) maybeSnapCheck();     /* 完全没有云端时：不必等拉取，直接抓 */
 /* PWA：注册 Service Worker（仅 https/localhost 生效，file:// 打开时跳过） */
 if('serviceWorker' in navigator && location.protocol!=='file:'){
