@@ -668,13 +668,14 @@
           <thead><tr>
             <th class="c-ym">年.月</th>
             <th class="c-prev">上月<br>结余</th><th>生活<br>支出</th><th>其他<br>支出</th><th>还贷</th>
-            <th>工资</th><th>收益</th><th>其他<br>收入</th><th>提前<br>还款</th><th>公积金</th><th class="c-end">月底<br>结余</th>
-            <th>可维持<br>月数</th>
+            <th>工资</th><th>收益</th><th>其他<br>收入</th><th>提前<br>还款</th>            <th>公积金</th><th class="c-end">月底<br>结余</th>
+            <th title="上月结余 ÷（当月还贷 + 「消费项」里每月生活支出合计 + 500 元备用金）">可维持<br>月数</th>
+            <th title="截至该月，因提前还款已节省的贷款利息合计（原计划利息 − 提前还款后利息）">累计<br>省息</th>
           </tr></thead>
-          <tbody id="monBody"><tr><td colspan="12" style="text-align:center;color:var(--ink-3);padding:26px 0">该年暂无记录，点下方按钮新增</td></tr></tbody>
+          <tbody id="monBody"><tr><td colspan="13" style="text-align:center;color:var(--ink-3);padding:26px 0">该年暂无记录，点下方按钮新增</td></tr></tbody>
         </table>
       </div>
-      <div class="addbtns"><button class="btn-mini primary" id="btnAddMonth">＋ 新增一年</button><button class="btn-mini" id="btnDelYear">－ 减少一年</button><button class="btn-mini lock-on" id="btnEditLock">🔒 已锁定</button><button class="btn-mini" id="btnLongImg">长图分享</button></div>
+      <div class="addbtns"><button class="btn-mini primary" id="btnAddMonth">＋ 新增一年</button><button class="btn-mini primary" id="btnAdd5Year" style="background:#3d6db3">＋ 新增五年</button><button class="btn-mini" id="btnDelYear">－ 减少一年</button><button class="btn-mini lock-on" id="btnEditLock">🔒 已锁定</button><button class="btn-mini" id="btnLongImg">长图分享</button></div>
     </div>
   </section>
 
@@ -991,7 +992,7 @@
         <div class="pay-grid">
           <div class="pay-cell">
             <span class="pay-k">调薪月份</span>
-            <div class="pay-v"><input id="payRaiseMonth" class="edit-in pay-in" data-f="raiseMonth" inputmode="numeric" placeholder="如 3，留空=未调薪"><span class="pay-u">月起</span></div>
+            <div class="pay-v"><input id="payRaiseMonth" class="edit-in pay-in" data-f="raiseMonth" inputmode="text" placeholder="如 3 或 2027.3，留空=未调薪"><span class="pay-u">月起</span></div>
           </div>
           <div class="pay-cell">
             <span class="pay-k">调整前税前月薪</span>
@@ -1310,6 +1311,18 @@
   </div>
 </div>
 
+<div class="modal" id="gainModal">
+  <div class="modal-mask" data-close=""></div>
+  <div class="modal-panel">
+    <div class="mp-head"><div><b>收益构成</b><div class="mp-sub" id="gainSub"></div></div>
+      <button class="mp-x" data-close="">✕</button></div>
+    <div id="gainList" style="margin-top:4px"></div>
+    <div style="display:flex;gap:9px;margin-top:14px">
+      <button class="btn-mini" id="gainClose" style="flex:1">关闭</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal" id="wdModal">
   <div class="modal-mask" data-close=""></div>
   <div class="modal-panel">
@@ -1347,10 +1360,17 @@
 </div>
 
 <div id="toast"></div>
+<div id="failBar" style="display:none;position:fixed;top:0;left:0;right:0;z-index:990;font-size:12px;line-height:1.5;padding:9px 14px;text-align:center;color:#fff"></div>
 
 <script>
 /* ================= 基础数据（来自存款计划表） ================= */
 const DATA = {"source":"","plan":[],"monthly":[],"expense":[],"notes":[],"header":[],"sheet_names":[]};
+
+/* 每月生活支出分组：定义在脚本前段——compute() 启动时就会调用 expTotal()（可维持月数分母），避免 TDZ */
+const EXP_GROUPS=[
+  {k:'life', n:'生活支出', items:['餐饮','零食','话费宽带','水电燃气','聚餐娱乐','油费','停车费','医疗','其他']},
+  {k:'baby', n:'育儿',     items:['尿不湿','奶粉','玩具','教育','其他']}
+];
 const FIELDS = ['living','other','salary','fund','prepay','inc'];
 const BASE_ROWS = DATA.monthly.map(m=>{
   const r={year:m.year,month:m.month,living:m.living,other:m.other,loan:m.loan||0,salary:m.salary,fund:m.fund,prepay:0};
@@ -1571,6 +1591,7 @@ function saveStore(){
   trimUndoForQuota();
   let ok=true;
   try{ localStorage.setItem(LS_KEY, JSON.stringify(store)); }catch(e){ ok=false; }
+  setFail('local', !ok);
   if(Date.now()-_lastSnapT>600000){ _lastSnapT=Date.now(); snapLocalBackup(); }   /* 日常改动每 10 分钟留一份本机快照 */
   cloudSync();
   return ok;
@@ -1680,6 +1701,9 @@ function setCloudStat(s){
   el.innerHTML = s==='cloud' ? ('<span style="color:var(--mint)">● '+(ghReady()?'已同步到云端':'云端已备份')+'</span>')
     : s==='err' ? ('<span style="color:var(--ink-3)">● '+(ghReady()?'等待重试（已存本机）':'本地模式')+'</span>')
     : '<span style="color:var(--ink-3)">● 检查云端中…</span>';
+  /* 同步失败给一条常驻提示（连着云端才有意义），恢复成功自动消失 */
+  if(s==='err' && cloudAvail()) setFail('cloud', true);
+  else if(s==='cloud') setFail('cloud', false);
   ghSyncStat(s);
 }
 
@@ -1785,6 +1809,15 @@ function startAutoPull(){
   if(_autoTimer) clearInterval(_autoTimer);
   _autoTimer=setInterval(silentPull, 45000);
 }
+/* ---- 断网兜底：页面本身离线可用（Service Worker 缓存），断网时改动只写入本机；
+   恢复联网后立即触发一次同步：若断网期间其他设备也改过数据，syncJudge 会判出
+   conflict 并弹窗让你选择保留哪一份（被覆盖的一方云端都会自动留档，可找回） ---- */
+window.addEventListener('offline',()=>{ if(cloudAvail()) setFail('offline', true); });
+window.addEventListener('online',()=>{
+  setFail('offline', false); setFail('cloud', false);
+  if(cloudAvail()){ toast('网络已恢复，正在同步…'); cloudSync(); }
+});
+if(typeof navigator!=='undefined' && !navigator.onLine && cloudAvail()) setFail('offline', true);
 /* 同步状态文案：卡片头部小字 + 卡片内提示 */
 function ghSyncStat(s){
   const sub=$('ghSub');
@@ -2053,6 +2086,22 @@ function compute(){
   const nyT=Math.max(nowYM(), rows.length? rows[0].year*12+rows[0].month : nowYM());
   const ctx={edits, byKey, allocOf, nyT};
   const results=loans.map((L,i)=>Object.assign({loan:L}, loanPlanOf(L,ctx,i)));
+  /* 提前还款节省利息：每笔贷款按「完全不提前还款」重跑一遍基线计划，
+     逐月对比利息差（利息≈当期还款前本金×月利率，两边用同一利率规则，只差本金）。
+     截至某月的累计利息差＝「到该月为止因提前还款已节省的利息」 */
+  const baseCtx={edits, byKey, allocOf:()=>loans.map(()=>0), nyT};
+  const baseResults=loans.map((L,i)=>loanPlanOf(L,baseCtx,i));
+  const intDiffByT={};
+  results.forEach((res,i)=>{
+    const bMap={};
+    baseResults[i].plan.forEach(p=>{ bMap[p.y*12+p.m]=p.principal*(p.rate/100)/12; });
+    res.plan.forEach(p=>{
+      const bi=bMap[p.y*12+p.m]; if(bi==null) return;
+      const d=bi - p.principal*(p.rate/100)/12;
+      if(Math.abs(d)>0.005) intDiffByT[p.y*12+p.m]=(intDiffByT[p.y*12+p.m]||0)+d;   /* 不逐月取整，避免舍入累积漂移 */
+    });
+  });
+  const savedTotal=round2(Object.keys(intDiffByT).reduce((s,k)=>s+intDiffByT[k],0));
   /* 合并月供：某月「还贷」= 所有贷款该月月供之和 */
   const payMap={};
   results.forEach(r=>{ Object.keys(r.payMap).forEach(t=>{ payMap[t]=(payMap[t]||0)+r.payMap[t]; }); });
@@ -2061,8 +2110,11 @@ function compute(){
   const prevAct = store.prevEdits||{};
   const baseFirst = BASE_ROWS.length ? BASE_ROWS[0].year*12+BASE_ROWS[0].month : null;
   let prev = (store.start!=null)? +store.start : (store.wiped? 0 : DEFAULT_START);
+  let savedAcc=0;   /* 累计省息游标（不逐月取整，显示时再取整） */
   rows.forEach(r=>{
     const key=r.year+'-'+r.month, t=r.year*12+r.month;
+    savedAcc+=(intDiffByT[t]||0);
+    r.intSaved=round2(savedAcc);
     /* 还贷 = 各贷款「对应年月」的月供之和；已删除贷款的历史月份用删除当时的快照，数值不变 */
     /* 还贷 = 各贷款「对应年月」的月供之和；已删除贷款的历史月份用删除当时的快照，数值不变；
        本期还贷列支持手动录入实际值（loanRec），录入后优先于计算值 */
@@ -2077,10 +2129,13 @@ function compute(){
        这两笔钱已各自按定期/理财利率计收益，不再按现金利率重复计息 */
     r.extra = Math.max(0, r.prev - depLocked(t) - finLockedAt(t))*extraRateAt(t) + depMatGain(t) + finGain(t);
     r.end = r.prev - r.living - r.other - r.loan + r.salary + r.fund + r.extra + (r.inc||0) - (r.prepay||0);
-    r.keep = (r.loan+2500)>0 ? r.prev/(r.loan+2500) : null;
+    /* 可维持月数 = 上月结余 ÷（当月还贷 + 消费项「每月生活支出」合计 + 500 备用金）；
+       生活费不再写死 2500，跟随「更多 → 消费项」里的实际合计变化 */
+    const lifeM=round2(expTotal()+500);
+    r.keep = (r.loan+lifeM)>0 ? r.prev/(r.loan+lifeM) : null;
     prev = r.end;
   });
-  return {rows, plan, plans: results.map(r=>r.plan), planAll, byKey, payMap, loans: results};
+  return {rows, plan, plans: results.map(r=>r.plan), planAll, byKey, payMap, loans: results, savedTotal};
 }
 
 /* ================= 工具 ================= */
@@ -2093,6 +2148,33 @@ const money=n=>'¥'+fmt(n, Math.abs(n)>=1000?0:2);
 const wan=(n,d=1)=>(n/10000).toFixed(d);
 let toastTimer;
 function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('show'),2000); }
+/* ---- 常驻失败提示条：保存/同步失败不自动消失，恢复后自动隐藏 ---- */
+let _failState={local:false, cloud:false, offline:false};
+function renderFailBar(){
+  const b=document.getElementById('failBar'); if(!b) return;
+  if(_failState.local){ b.style.display='block'; b.style.background='#c25b4e';
+    b.textContent='⚠ 本地保存失败（浏览器存储空间不足？）：刚才的修改可能没写进去，请先到「更多 → 数据管理」导出备份，再清理空间后重试'; return; }
+  if(_failState.offline){ b.style.display='block'; b.style.background='#b07d10';
+    b.textContent='当前离线：改动已保存在本机，恢复网络后会自动同步上传'; return; }
+  if(_failState.cloud){ b.style.display='block'; b.style.background='#b07d10';
+    b.textContent='⚠ 云端同步失败（数据已存本机不会丢）：检查网络后点「更多 → 多设备同步」重试，或等待自动重试'; return; }
+  b.style.display='none';
+}
+function setFail(k,on){ _failState[k]=!!on; renderFailBar(); }
+/* 数字输入框统一过滤非法字符：声明了 inputmode=decimal/numeric 的文本输入框，
+   输入时自动剔除数字和小数点以外的字符（只保留第一个小数点），避免敲进字母后数值悄悄变成 0。
+   type=number 的输入框浏览器本身会拦截字母，不用处理 */
+document.addEventListener('input',e=>{
+  const el=e.target;
+  if(!el || el.tagName!=='INPUT' || el.type==='number') return;
+  const im=el.getAttribute('inputmode');
+  if(im!=='decimal' && im!=='numeric') return;
+  const v=String(el.value);
+  let cleaned=v.replace(/[^\d.]/g,'');
+  const i=cleaned.indexOf('.');
+  if(i>=0) cleaned=cleaned.slice(0,i+1)+cleaned.slice(i+1).replace(/\./g,'');
+  if(cleaned!==v) el.value=cleaned;
+}, true);
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
 
 let S = computeAll();
@@ -2179,20 +2261,27 @@ function renderYearCmp(){
     return '<span style="font-size:10px;color:'+(good?'var(--mint)':'var(--red)')+'">'+(diff>0?'↑':'↓')+pc+'%</span>';
   };
   const f0=v=>'¥'+fmt(v,0);
-  const rows=data.map((d,i)=>{
-    const p=i? data[i-1] : null;
-    return '<tr>'
+  /* 中间缺年的年份补一行「该年无记录」灰行：2026 和 2028 之间 2027 没数据时不再紧挨着看不出断档 */
+  const y0=data[0].y, y1=data[data.length-1].y;
+  const byY={}; data.forEach(d=>{ byY[d.y]=d; });
+  const rows=[];
+  for(let y=y0;y<=y1;y++){
+    const d=byY[y];
+    if(!d){ rows.push('<tr><td colspan="5" style="'+TD+';text-align:left;color:#b3bfd0">'+y+' 年 · 该年无记录</td></tr>'); continue; }
+    const p=(()=>{ let yy=y-1; while(yy>=y0 && !byY[yy]) yy--; return yy>=y0? byY[yy] : null; })();
+    rows.push('<tr>'
       +'<td style="'+TD+';text-align:left;font-weight:600">'+d.y+(d.n<12?'<span style="font-weight:400;color:var(--ink-3)">（'+d.n+'个月）</span>':'')+'</td>'
       +'<td style="'+TD+'"><b class="num">'+f0(d.inc)+'</b><br>'+sub(d.inc,p?p.inc:null,true)+'</td>'
       +'<td style="'+TD+'"><b class="num">'+f0(d.cost)+'</b><br>'+sub(d.cost,p?p.cost:null,false)+'</td>'
       +'<td style="'+TD+'"><b class="num" style="color:'+(d.net>=0?'var(--mint)':'var(--red)')+'">'+f0(d.net)+'</b><br>'+sub(d.net,p?p.net:null,true)+'</td>'
       +'<td style="'+TD+'"><b class="num">'+f0(d.end)+'</b><br><span style="font-size:10px;color:var(--ink-3)">'+d.n+'个月末</span></td>'
-      +'</tr>';
-  }).join('');
+      +'</tr>');
+  }
+  const rowsHtml=rows.join('');
   host.innerHTML='<div style="overflow-x:auto;-webkit-overflow-scrolling:touch"><table style="width:100%;min-width:380px;border-collapse:collapse;font-size:12px;text-align:center">'
     +'<thead><tr style="color:var(--ink-3);font-size:10.5px;font-weight:400">'
     +'<th style="text-align:left;padding:2px 5px 6px">年份</th><th style="padding:2px 5px 6px">总收入</th><th style="padding:2px 5px 6px">总支出</th><th style="padding:2px 5px 6px">净结余</th><th style="padding:2px 5px 6px">年末结余</th>'
-    +'</tr></thead><tbody>'+rows+'</tbody></table></div>';
+    +'</tr></thead><tbody>'+rowsHtml+'</tbody></table></div>';
 }
 function applyYearCmpOpen(){
   const body=$('yearCmpBody'); if(!body) return;
@@ -2294,7 +2383,7 @@ applyIncBarOpen();
 applyDepBarOpen();
 
 /* 版本标识：发布新版本时改这里，设置页底部可见，便于确认“是否已更新到最新页面” */
-const APP_VER='v79';
+const APP_VER='v80';
 function renderAppVer(){
   const el=$('appVer'); if(!el) return;
   const t=curYM(), y=Math.floor((t-1)/12), m=(t-1)%12+1;
@@ -2393,7 +2482,7 @@ function renderOverview(){
     if(!ppSeq[k]) ppSeq[k]=allPlan.filter(x=>(x.loanId||'')===k).sort(ppSort);
     return ppSeq[k];
   };
-  $('prepaySum').textContent = pps.length? pps.length+' 次 · 共 '+fmt(ppSum,0)+' 元' : '';
+  $('prepaySum').textContent = pps.length? pps.length+' 次 · 共 '+fmt(ppSum,0)+' 元 · 累计省息 ¥'+fmt(S.savedTotal||0,0) : '';
   $('prepayList').innerHTML = pps.length? pps.map(p=>{
     const seq=ppSeqOf(p), i=seq.indexOf(p);
     const from=p.payment;                                  /* 本期（提前还款当月）月供，提前还款不影响本月 */
@@ -2477,7 +2566,7 @@ function renderTable(){
   };
   const ny=curYM();
   const body=$('monBody');
-  if(!rows.length){ body.innerHTML='<tr><td colspan="12" style="text-align:center;color:var(--ink-3);padding:26px 0">该年暂无记录，点下方按钮新增</td></tr>'; fillSum(); return; }
+  if(!rows.length){ body.innerHTML='<tr><td colspan="13" style="text-align:center;color:var(--ink-3);padding:26px 0">该年暂无记录，点下方按钮新增</td></tr>'; fillSum(); return; }
   const groups=[];
   rows.forEach(r=>{ const g=groups[groups.length-1]; if(g&&g.year===r.year) g.rows.push(r); else groups.push({year:r.year,rows:[r]}); });
   const firstKey=S.rows[0] ? S.rows[0].year+'-'+S.rows[0].month : null;
@@ -2503,12 +2592,13 @@ function renderTable(){
         ? `<td class="edit c-loan" data-key="${key}" data-f="loan" title="本期还贷可录入实际值">${r.loan>0?fmtT(r.loan,2):'—'}</td>`
         : `<td class="c-ro">${r.loan>0?fmtT(r.loan,2):'—'}</td>`;
       html += `<td class="edit" data-key="${key}" data-f="salary" title="显示取整，计算仍按实际值">${fmtT(r.salary,0)}</td>`;
-      html += `<td class="c-ro">${fmtT(r.extra,2)}</td>`;
+      html += `<td class="c-ro gain-c" data-key="${key}" title="点击查看收益构成">${fmtT(r.extra,2)}</td>`;
       html += `<td class="edit ${r.inc>0?'gold':''}" data-key="${key}" data-f="inc" title="其他收入，计入月底结余">${fmtT(r.inc||0,0)}</td>`;
       html += `<td class="edit ${r.prepay>0?'gold':''}" data-key="${key}" data-f="prepay" title="提前还款，房贷页联动重算">${fmtT(r.prepay||0,0)}</td>`;
       html += `<td class="edit" data-key="${key}" data-f="fund">${fmtT(r.fund,0)}</td>`;
       html += `<td class="c-end ${netR?'neg':''}">${fmtT(r.end,0)}</td>`;
       html += `<td class="c-ro">${r.keep!=null?fmtT(r.keep,1):'—'}</td>`;
+      html += `<td class="c-ro" title="截至该月已节省的贷款利息">${r.intSaved>0.005?fmtT(r.intSaved,0):'—'}</td>`;
       html += `</tr>`;
     });
   });
@@ -2750,7 +2840,11 @@ function beginCellEdit(td){
   const initStr = isZeroDash?'0':String(v==null?0:round2(v));
   td.innerHTML=`<input class="cell" type="number" inputmode="decimal" value="${initStr}">`;
   const inp=td.querySelector('input');
+  /* 编辑框宽度跟随内容长度：数字长框就宽，不再固定 88px 截断 */
+  inp.style.width=Math.max(64,Math.min(240,26+initStr.length*10))+'px';
   inp.focus(); inp.select();
+  /* 手机上键盘弹起会盖住正在编辑的格子：稍等键盘动画后把输入框滚到屏幕中央 */
+  setTimeout(()=>{ try{ inp.scrollIntoView({block:'center',behavior:'smooth'}); }catch(e){} },350);
   let done=false;
   const finish=(commit)=>{
     if(done) return; done=true;
@@ -2782,7 +2876,10 @@ function beginPlanEdit(td){
   const v = (t==='rate')? +(p.rate*100).toFixed(3) : p.principalBefore;   // 剩余本金按「还款前」口径显示与录入
   td.classList.add('editing');
   td.innerHTML=`<input class="cell" type="number" inputmode="decimal" style="min-width:80px" value="${v}" step="0.001">`;
-  const inp=td.querySelector('input'); inp.focus(); inp.select();
+  const inp=td.querySelector('input');
+  inp.style.width=Math.max(80,Math.min(240,26+String(v).length*10))+'px';
+  inp.focus(); inp.select();
+  setTimeout(()=>{ try{ inp.scrollIntoView({block:'center',behavior:'smooth'}); }catch(e){} },350);
   let done=false;
   const finish=(commit)=>{
     if(done) return; done=true;
@@ -2879,9 +2976,44 @@ $('monBody').addEventListener('click',e=>{
     if(!requireUnlock()) return;
     beginCellEdit(td); return;
   }
+  const gt=e.target.closest('td.gain-c');
+  if(gt){ openGainDetail(gt.dataset.key); return; }
   const mon=e.target.closest('td.c-ym');
   if(mon){ if(!requireUnlock()) return; openRow(mon.dataset.open); return; }
 });
+/* ---- 收益构成小窗：现金利息 / 定期收益 / 理财收益，与「收益」列合计一致 ---- */
+function openGainDetail(key){
+  const r=S.byKey[key]; if(!r) return;
+  const t=r.year*12+r.month;
+  const a=String(key).split('-').map(Number);
+  $('gainSub').textContent=a[0]+'年'+a[1]+'月 · 合计 ¥'+fmt(r.extra,2);
+  const rows=[];
+  /* 1) 现金结余利息：基数扣掉定期锁定金额与理财在投本金，避免重复计息 */
+  const cashBase=Math.max(0, r.prev - depLocked(t) - finLockedAt(t));
+  const cashInt=round2(cashBase*extraRateAt(t));
+  if(Math.abs(cashInt)>0.005 || cashBase>0.005) rows.push(['现金利息（活期 '+fmt(extraRateAt(t)*12,2)+'%/年）',cashInt]);
+  /* 2) 定期收益：本月到期的定期笔笔列出 */
+  depAll().forEach(d=>{ if(depDueT(d)===t && depGain(d)>0.005) rows.push(['定期存款 '+(d.from||'')+' 存入 ¥'+fmt(+d.amt||0,0),depGain(d)]); });
+  /* 3) 理财收益：按理财逐项算当月收益（与 finGain 同口径） */
+  (store.finances||[]).forEach(f=>{
+    const amt=+f.amt||0, rate=(+f.rate||0)/100, n=+f.n||1;
+    if(!(amt>0)||!(rate>0)) return;
+    const st=ymToT(f.from); if(st==null || t<st) return;
+    const due=ymToT(f.due);
+    const cyc=f.cycle||'day'; let g=0;
+    if(cyc==='day'){ if(due!=null && t>due) g=0; else g=amt*rate/365*daysInMonth(t); }
+    else if(cyc==='month'){ if(due!=null){ g=(t===due)? amt*rate/12*n : 0; } else g=amt*rate/12*n; }
+    else{ if(due!=null){ g=(t===due)? amt*rate*n : 0; } else if(((t-1)%12)+1===((st-1)%12)+1) g=amt*rate*n; }
+    if(g>0.005) rows.push(['理财「'+(f.name||'未命名')+'」',round2(g)]);
+  });
+  const html=rows.length
+    ? rows.map(x=>'<div class="oth-row"><span>'+esc(x[0])+'</span><b class="num">¥'+fmt(x[1],2)+'</b></div>').join('')
+    : '<div style="font-size:12px;color:var(--ink-3);padding:6px 0">这个月暂无收益来源。</div>';
+  $('gainList').innerHTML=html;
+  $('gainModal').classList.add('on');
+}
+document.getElementById('gainModal').addEventListener('click',e=>{ if(e.target.closest('[data-close]')) $('gainModal').classList.remove('on'); });
+document.getElementById('gainClose').addEventListener('click',()=>{ $('gainModal').classList.remove('on'); });
 /* ---- 其他支出明细小窗 ---- */
 let othKey=null;
 function openOtherDetail(key){
@@ -3313,7 +3445,11 @@ function addPlanRows(list){
   store.added=(store.added||[]).filter(a=>!keys.has(a.year+'-'+a.month));
   list.forEach(r=>store.added.push(r));
 }
-$('btnAddMonth').addEventListener('click',()=>{
+/* 新增 N 年（1 或 5）：在计划最后一个月之后追加 12×N 个月；
+   工资、公积金、生活支出沿用上一年同月数值，房贷自动引用月供；
+   其他支出不沿用上一年（避免把叠加值固化成手填），新一年由周期消费/消费计划/固定利息自动叠加 */
+function addYearsOnce(n){
+  if(!requireUnlock()) return;
   /* 还没有任何记录（清空重记后首次添加）：只添加今年的剩余月份（从当前月起） */
   const lastR=S.rows[S.rows.length-1];
   if(!lastR){
@@ -3331,25 +3467,28 @@ $('btnAddMonth').addEventListener('click',()=>{
     }
     return;
   }
-  /* 新增一年：在计划最后一个月之后追加 12 个月；
-     工资、公积金、生活支出沿用上一年同月数值，房贷自动引用月供；
-     其他支出不沿用上一年（避免把叠加值固化成手填），新一年由周期消费/消费计划/固定利息自动叠加 */
   const startT=lastR.year*12+lastR.month;
+  const refMap={};
+  S.rows.forEach(r=>{ refMap[r.year*12+r.month]=r; });
   const fresh=[];
-  for(let i=1;i<=12;i++){
+  for(let i=1;i<=12*n;i++){
     const t=startT+i, y=Math.floor((t-1)/12), m=((t-1)%12)+1;
-    const ref=S.rows.find(r=>r.year*12+r.month===t-12)||lastR;   // 上一年同月
+    const ref=refMap[t-12]||lastR;   // 上一年同月（本批刚生成的行也作为后续年份的参照）
     const row={year:y,month:m,living:ref.living!=null?ref.living:0,other:0,prepay:ref.prepay||0,salary:ref.salary!=null?ref.salary:0,fund:ref.fund!=null?ref.fund:0};
-    fresh.push(row);
+    refMap[t]=row; fresh.push(row);
   }
   addPlanRows(fresh);
   if(saveStore()){
     curYear='all'; refreshAll();
-    const first=fresh[0], tr=document.querySelector(`tr[data-row="${first.year}-${first.month}"]`);
+    const first=fresh[0], last=fresh[fresh.length-1];
+    const tr=document.querySelector(`tr[data-row="${first.year}-${first.month}"]`);
     if(tr) tr.scrollIntoView({block:'center'});
-    toast('已新增 '+first.year+' 年 12 个月，工资/公积金/生活支出沿用上一年；其他支出为 0，由消费项/固定利息自动计入');
+    toast(n>1? ('已新增 '+first.year+' 年至 '+last.year+' 年共 '+fresh.length+' 个月，工资/公积金/生活支出沿用上一年；其他支出为 0，由消费项/固定利息自动计入')
+             : ('已新增 '+first.year+' 年 12 个月，工资/公积金/生活支出沿用上一年；其他支出为 0，由消费项/固定利息自动计入'));
   }
-});
+}
+$('btnAddMonth').addEventListener('click',()=>addYearsOnce(1));
+$('btnAdd5Year').addEventListener('click',()=>addYearsOnce(5));
 /* 减少一年：删除最后一年（最后行所在年份）的全部月记录 */
 $('btnDelYear').addEventListener('click',()=>{
   if(!requireUnlock()) return;
@@ -3519,7 +3658,8 @@ const EXP_COLS=[
   ['提前还款', r=>r.prepay||0],
   ['公积金',   r=>r.fund],
   ['月底结余', r=>r.end],
-  ['可维持月数', r=>r.keep!=null?r.keep:'']
+  ['可维持月数', r=>r.keep!=null?r.keep:''],
+  ['累计省息', r=>r.intSaved||0]
 ];
 function dlFile(name,mime,content){
   const blob=new Blob([content],{type:mime});
@@ -3563,7 +3703,8 @@ $('btnLongImg').addEventListener('click',()=>{
     {t:'提前还款',w:70, v:r=>r.prepay||0, gold:r=>(r.prepay||0)>0},
     {t:'公积金',w:60, v:r=>r.fund},
     {t:'月底结余',w:78, v:r=>r.end, strong:true, neg:r=>r.end<0},
-    {t:'可维持月数',w:78, v:r=>r.keep!=null?r.keep:null, dash:r=>r.keep==null, d:1}
+    {t:'可维持月数',w:78, v:r=>r.keep!=null?r.keep:null, dash:r=>r.keep==null, d:1},
+    {t:'累计省息',w:70, v:r=>r.intSaved||0, dash:r=>!(r.intSaved>0.005), d:0}
   ];
   const W=cols.reduce((s,c)=>s+c.w,0)+24, rowH=26, headH=34, titleH=44, footH=34;
   const H=titleH+headH+rows.length*rowH+footH;
@@ -3680,7 +3821,10 @@ function renderLocalSnaps(){
   const host=$('snapLocal'); if(!host) return;
   const arr=localSnaps();
   if(!arr.length){ host.innerHTML='<div style="font-size:11px;color:var(--ink-3);padding:6px 2px 2px">暂无本机留档。导入备份、恢复数据、清空重记、云端覆盖本机前会自动留一份；日常改动每 10 分钟也会留一份（最多 5 份）。</div>'; return; }
-  host.innerHTML='<div class="snap-day">本机留档（最新 '+arr.length+' 份）</div><div class="snap-g">'
+  const lastT=arr[arr.length-1].t;
+  const ago=Math.round((Date.now()-lastT)/60000);
+  const agoTxt= ago<1 ? '刚刚' : (ago<60? ago+' 分钟前' : (ago<1440? Math.round(ago/60)+' 小时前' : Math.round(ago/1440)+' 天前'));
+  host.innerHTML='<div class="snap-day">本机留档（最新 '+arr.length+' 份 · 最近一次留档 '+snapLabelT(lastT).slice(5)+'，'+agoTxt+'）</div><div class="snap-g">'
     +arr.map((s,i)=>'<button class="snap-it" data-lsnap="'+i+'">'+snapLabelT(s.t).slice(5)+'<span>恢复到该时点</span></button>').join('')
     +'</div>';
 }
@@ -4944,11 +5088,8 @@ function switchView(v){
 }
 
 /* ================= 静态内容 & 总刷新 ================= */
-/* 每月生活支出构成：生活支出 / 育儿 两块，逐项填金额；合计可一键套到本期之后的所有月份 */
-const EXP_GROUPS=[
-  {k:'life', n:'生活支出', items:['餐饮','零食','话费宽带','水电燃气','聚餐娱乐','油费','停车费','医疗','其他']},
-  {k:'baby', n:'育儿',     items:['尿不湿','奶粉','玩具','教育','其他']}
-];
+/* 每月生活支出构成：生活支出 / 育儿 两块，逐项填金额；合计可一键套到本期之后的所有月份
+   （EXP_GROUPS 常量定义在脚本前段，供 compute() 启动时使用） */
 let expFold={life:true,baby:true};   /* true=折叠：刷新后默认折叠 */
 function expKeyOf(k,item){ return k+'|'+item; }
 function expVal(k,item){
@@ -5213,7 +5354,7 @@ function payDefault(){
     if(isFinite(cand.fund)&&cand.fund>0) fund=cand.fund;
   }
   if(!monthly) monthly=0;
-  return {monthly, monthlyPre:0, social:0, fund, special:0, bonus:0, bonusPre:0, bonusMonth:3, bonusYear:'next', raiseMonth:0, raisePct:0, raiseEvery:1, mode:'single'};
+  return {monthly, monthlyPre:0, social:0, fund, special:0, bonus:0, bonusPre:0, bonusMonth:3, bonusYear:'next', raiseMonth:0, raiseYear:0, raisePct:0, raiseEvery:1, mode:'single'};
 }
 function payCfg(){
   const def=payDefault(), o=store.pay||{};
@@ -5221,16 +5362,18 @@ function payCfg(){
   /* 发放月份限定 1–12 的整数：不填按 3 月，超出上限按 12 月 */
   const bmRaw=Math.round(num('bonusMonth'));
   const bonusMonth=bmRaw>=1 ? Math.min(12,bmRaw) : 3;
-  /* 调薪月份：1–12 有效，留空=未调薪（全年按新薪） */
+  /* 调薪月份：1–12 有效，留空=未调薪（全年按新薪）；raiseYear>0 表示跨年调薪（如 2027.3） */
   const rmRaw=Math.round(num('raiseMonth'));
   const raiseMonth=(rmRaw>=1&&rmRaw<=12)?rmRaw:0;
+  const ryRaw=Math.round(num('raiseYear'));
+  const raiseYear=(ryRaw>=2000)?ryRaw:0;
   /* 以后年份递增：幅度 0–50%，周期 1–10 年；幅度留空/0 = 不递增 */
   const rpRaw=num('raisePct');
   const raisePct=(rpRaw>0&&rpRaw<=50)?rpRaw:0;
   const reRaw=Math.round(num('raiseEvery'));
   const raiseEvery=(reRaw>=1&&reRaw<=10)?reRaw:1;
   return {monthly:num('monthly'), monthlyPre:num('monthlyPre'), social:num('social'), fund:num('fund'),
-    special:num('special'), bonus:num('bonus'), bonusPre:num('bonusPre'), bonusMonth, raiseMonth,
+    special:num('special'), bonus:num('bonus'), bonusPre:num('bonusPre'), bonusMonth, raiseMonth, raiseYear,
     raisePct, raiseEvery,
     bonusYear:o.bonusYear==='cur'?'cur':'next', mode:o.mode==='merge'?'merge':'single'};
 }
@@ -5301,6 +5444,7 @@ function renderPay(){
   [['payMonthlyPre','monthlyPre'],['payMonthly','monthly'],['paySocial','social'],['payFund','fund'],['paySpecial','special'],['payBonusPre','bonusPre'],['payBonus','bonus'],['payBonusMonth','bonusMonth'],['payRaiseMonth','raiseMonth'],['payRaisePct','raisePct']]
     .forEach(([id,f])=>{
       const el=$(id); if(!el || el===document.activeElement) return;
+      if(f==='raiseMonth'){ el.value = c.raiseMonth>0 ? (c.raiseYear>0? c.raiseYear+'.'+c.raiseMonth : String(c.raiseMonth)) : ''; return; }
       el.value = (c[f]>0) ? String(c[f]) : '';
     });
   const _reSel=$('payRaiseEvery');
@@ -5335,7 +5479,7 @@ function renderPay(){
   const bm=c.bonusMonth;
   let foot='';
   foot += c.raiseMonth>0
-    ? `明细全年按<b>调整后月薪 ¥${fmt(c.monthly,2)}</b>计算（与调整前数值无关）；调薪月份用于点「修改」写入 —— 本年 ${c.raiseMonth} 月前按调整前月薪、${c.raiseMonth} 月起按调整后月薪写入（已过去的月份不动）；`
+    ? `明细全年按<b>调整后月薪 ¥${fmt(c.monthly,2)}</b>计算（与调整前数值无关）；调薪月份用于点「修改」写入 —— ${(c.raiseYear>0? c.raiseYear+' 年 '+c.raiseMonth+' 月':'本年 '+c.raiseMonth+' 月')}前按调整前月薪、之后按调整后月薪写入（已过去的月份不动）；`
     : `未填调薪月份，全年按<b>调整后月薪 ¥${fmt(c.monthly,2)}</b>计算；`;
   if(c.raisePct>0){
     const _cy=Math.floor((curYM()-1)/12);
@@ -5365,7 +5509,7 @@ function renderPay(){
     const netPre=c.bonusPre>0 ? wPre.rows[bm-1].netBonus : 0;
     const wNx=c.bonus>0 ? calcPay({bonus:c.bonus, bonusYear:'next'}) : null;
     foot+=`<br><span style="color:var(--ink-3)">点「改本年」或「修改」写入存款计划时：`
-      + ((c.raiseMonth>0 && c.monthlyPre>0)?`本年 ${c.raiseMonth} 月前按<b>调整前月薪 ¥${fmt(c.monthlyPre,2)}</b>推算；`: '')
+      + ((c.raiseMonth>0 && c.monthlyPre>0)?`${(c.raiseYear>0? c.raiseYear+' 年 '+c.raiseMonth+' 月':'本年 '+c.raiseMonth+' 月')}前按<b>调整前月薪 ¥${fmt(c.monthlyPre,2)}</b>推算；`: '')
       + (c.bonusPre>0?`本年 ${bm} 月加<b>调整前年终奖 ¥${fmt(c.bonusPre,2)}</b>（税后 ¥${fmt(netPre,2)}）；`: '')
       + ((c.bonusYear==='next'&&wNx&&wNx.bonusNext)?`次年及以后每年 ${bm} 月加<b>调整后年终奖 ¥${fmt(c.bonus,2)}</b>（税后 ¥${fmt(wNx.bonusNext.net,2)}）；`: '')
       + `明细表本身不受影响。</span>`;
@@ -5384,7 +5528,23 @@ function syncPayFromInputs(){
   const changed=[];
   document.querySelectorAll('.pay-in').forEach(inp=>{
     const f=inp.dataset.f; if(!f) return;
-    const isMonth=(f==='bonusMonth'||f==='raiseMonth'||f==='raiseEvery');
+    /* 调薪月份支持跨年：填 2027.3 表示 2027 年 3 月起调薪（只填数字仍代表本年） */
+    if(f==='raiseMonth'){
+      const raw=String(inp.value).trim().replace(/[年月]/g,'.').replace(/\.+/g,'.').replace(/^\.|\.$/g,'');
+      const mm=raw.match(/^(\d{1,4})(?:[.\-](\d{1,2}))?$/);
+      let nm=0, ny=0;
+      if(mm){
+        if(mm[2]!=null){ ny=+mm[1]; nm=+mm[2]; }
+        else if(mm[1].length<=2){ nm=+mm[1]; }
+        else { ny=Math.floor(+mm[1]/100); nm=+mm[1]%100; }
+      }
+      if(!(nm>=1&&nm<=12)) nm=0;
+      if(!(ny>=2000&&ny<=2100)) ny=0;
+      store.pay=store.pay||{};
+      if(store.pay.raiseMonth!==nm || store.pay.raiseYear!==ny){ store.pay.raiseMonth=nm; store.pay.raiseYear=ny; changed.push('raiseMonth'); }
+      return;
+    }
+    const isMonth=(f==='bonusMonth'||f==='raiseEvery');
     const v=parseFloat(String(inp.value).replace(/[^\d.]/g,''));
     const nv=isFinite(v)?(isMonth?Math.round(v):round2(v)):0;
     store.pay=store.pay||{};
@@ -5402,8 +5562,12 @@ function syncPayToPlan(scope){
   const yEnd=cy*12+12;                      /* 本年 12 月 */
   const targets=S.rows.filter(r=>r.year*12+r.month>=t0 && (!onlyYear || r.year*12+r.month<=yEnd));
   if(!targets.length){ toast('本期及以后没有可修改的月份'); return; }
-  if(c.raiseMonth>0 && !(c.monthlyPre>0) && targets.some(r=>r.year===cy&&r.month<c.raiseMonth)){
-    toast('本年还有调薪前的月份要写入，请先填写「调整前税前月薪」'); return;
+  const ry=(c.raiseYear>0)?c.raiseYear:0;   /* 跨年调薪：如 2027.3 → 调薪年=2027 */
+  /* 该月是否属于「调薪前」（跨年调薪时，调薪年之前所有月份都算调薪前） */
+  const needPre=r=> ry? (r.year<ry || (r.year===ry && r.month<c.raiseMonth))
+                      : (r.year===cy && r.month<c.raiseMonth);
+  if(c.raiseMonth>0 && !(c.monthlyPre>0) && targets.some(needPre)){
+    toast((ry>cy? ry+' 年':'本年')+'还有调薪前的月份要写入，请先填写「调整前税前月薪」'); return;
   }
   /* 写入口径（与明细口径分开重算）：
      · 调薪前的月份按「调整前月薪」计，调薪当月起按调整后，全年混合收入连续累计预扣
@@ -5412,6 +5576,8 @@ function syncPayToPlan(scope){
   const bonusW = c.bonusPre>0 ? c.bonusPre : (c.bonusYear==='cur' ? c.bonus : 0);
   const bonusN = (c.bonusYear==='next' && c.bonus>0) ? c.bonus : 0;
   const pW = (bonusW>0 || c.monthlyPre>0) ? calcPay({bonus:bonusW, usePre:true, bonusYear:'cur'}) : p;
+  /* 调薪年之前的整年：全部按「调整前月薪」计（raiseMonth:13 = 全年都在调薪前） */
+  const pAll = (bonusW>0 || c.monthlyPre>0) ? calcPay({bonus:bonusW, usePre:true, raiseMonth:13, bonusYear:'cur'}) : p;
   /* 次年发放月的奖金：单独计税按 12 个月分摊定档，并入综合所得按「整年新薪 + 奖金」与「整年新薪」的税差 */
   let nextBonus=null;
   if(bonusN>0){
@@ -5422,6 +5588,21 @@ function syncPayToPlan(scope){
   }
   /* 每个月应写入的到手工资：null 表示该月保持不动 */
   const netOf=r=>{
+    if(ry){
+      /* 跨年调薪：调薪年之前整年按旧薪；调薪年内「前旧后新」连续累计预扣；之后的年份按新薪（含递增）推算 */
+      if(r.year<ry){
+        if(!(c.monthlyPre>0)) return null;
+        return pAll.rows[r.month-1].netAll;
+      }
+      if(r.year===ry){
+        if(r.month<c.raiseMonth && !(c.monthlyPre>0)) return null;
+        return pW.rows[r.month-1].netAll;
+      }
+      let v=pW.netStdFor(r.year)[r.month-1];
+      if(nextBonus && r.year>=cy+1 && r.month===c.bonusMonth)
+        v=round2(v+nextBonus.net);
+      return v;
+    }
     if(r.year===cy){
       if(c.raiseMonth>0 && r.month<c.raiseMonth){
         if(!(c.monthlyPre>0)) return null;     /* 没填调整前月薪：调薪前的月份保持不动 */
@@ -5438,7 +5619,7 @@ function syncPayToPlan(scope){
   const ymd=r=>r.year+'-'+String(r.month).padStart(2,'0');
   const renamed=targets.filter(r=>{ const v=netOf(r); return v!=null && Math.abs((r.salary||0)-v)>0.005; }).length;
   if(!renamed){ toast('工资列（'+ymd(first)+' 起共 '+targets.length+' 个月）已与计算一致，无需修改'); return; }
-  const preN=targets.filter(r=>r.year===cy&&c.raiseMonth>0&&r.month<c.raiseMonth&&c.monthlyPre>0).length;
+  const preN=targets.filter(r=>c.raiseMonth>0&&needPre(r)&&c.monthlyPre>0).length;
   const skipN=targets.filter(r=>netOf(r)==null).length;
   const curBonusRow = bonusW>0 ? pW.rows[c.bonusMonth-1] : null;
   let bonusLine='';
@@ -5453,15 +5634,15 @@ function syncPayToPlan(scope){
   if(!confirm('把「收入测算」页的到手工资按月份写入存款计划的「工资」列？\n\n· 范围：'+ymd(first)+' ~ '+ymd(last)+'，共 '+targets.length+' 个月'
     + (onlyYear?'（只改本年度，次年及以后不动）':'')
     +'\n· 已过去的月份（'+ymText(t0)+' 之前）不改'
-    +(preN>0?('\n· 本年调薪前（'+c.raiseMonth+' 月之前）的 '+preN+' 个月按调整前月薪 ¥'+fmt(c.monthlyPre,2)+' 推算'):'')
-    +(c.raiseMonth>0?('\n· 本年 '+c.raiseMonth+' 月起按调整后月薪 ¥'+fmt(c.monthly,2)+' 推算，个税按全年累计预扣连续计算'):'')
+    +(preN>0?('\n· '+((ry>cy? ry+' 年':'本年')+'调薪前（'+(ry>cy? ry+' 年 '+c.raiseMonth+' 月':'本年 '+c.raiseMonth+' 月')+'之前）的 '+preN+' 个月按调整前月薪 ¥'+fmt(c.monthlyPre,2)+' 推算')):'')
+    +(c.raiseMonth>0?('\n· '+(ry>cy? ry+' 年 '+c.raiseMonth+' 月起':'本年 '+c.raiseMonth+' 月起')+'按调整后月薪 ¥'+fmt(c.monthly,2)+' 推算，个税按全年累计预扣连续计算'):'')
     +(p.raisePct>0?('\n· 以后年份按「每 '+p.raiseEvery+' 年递增 '+p.raisePct+'%」推算：'+(cy+p.raiseEvery)+' 年起月薪逐档上调，个税按当年月薪整年累计预扣（年终奖金额不随递增）'):'')
     +(skipN>0?('\n· 另有 '+skipN+' 个月（未填调整前月薪）保持现薪不动'):'')
     +bonusLine
     +'\n· 其中 '+renamed+' 个月的金额会发生变化\n\n确认修改？')) return;
   /* 先把当前口径固化到 store.pay：工资列被改写后，默认取值的来源变了，不固化会让数值在改完后跳一下 */
   store.pay=store.pay||{};
-  ['monthly','monthlyPre','social','fund','special','bonus','bonusPre','bonusMonth','raiseMonth','raisePct','raiseEvery'].forEach(k=>{
+  ['monthly','monthlyPre','social','fund','special','bonus','bonusPre','bonusMonth','raiseMonth','raiseYear','raisePct','raiseEvery'].forEach(k=>{
     if(store.pay[k]==null) store.pay[k]=p.c[k];
   });
   if(store.pay.mode==null) store.pay.mode=p.c.mode;
@@ -6239,6 +6420,16 @@ window.addEventListener('orientationchange',()=>setTimeout(sizeTables,200));
 
   $('ghPushNow').addEventListener('click',async()=>{
     if(!ghReady()){ say('先填好配置并点「保存并连接」。'); return; }
+    say('<span style="color:var(--ink-3)">● 正在检查云端…</span>');
+    /* 先拉云端比对：另一台设备刚改过时不再直接覆盖，与正常同步一样走冲突流程 */
+    try{
+      const r=await fetchRemote();
+      if(!r.err){
+        const j=syncJudge(r.remote);
+        if(j==='conflict'){ showConflictModal(r.remote); say('两台设备都改过数据，请在弹窗里选择保留哪一份。'); return; }
+        if(j==='pull'){ adoptRemote(r.remote); say('<span style="color:var(--mint)">● 云端数据更新，已先拉回本机</span>（本机改动之前已同步过，或可在「恢复历史数据」找回）'); return; }
+      }
+    }catch(e){}
     say('<span style="color:var(--ink-3)">● 正在上传…</span>');
     const ok=await ghPut();
     if(ok){ store.syncAt=store.updatedAt; try{ localStorage.setItem(LS_KEY,JSON.stringify(store)); }catch(e){}
