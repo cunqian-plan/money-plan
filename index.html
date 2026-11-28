@@ -2093,13 +2093,18 @@ function compute(){
   const baseResults=loans.map((L,i)=>loanPlanOf(L,baseCtx,i));
   const intDiffByT={};
   results.forEach((res,i)=>{
-    const bMap={};
+    const cMap={}, bMap={};
+    res.plan.forEach(p=>{ cMap[p.y*12+p.m]=p.principal*(p.rate/100)/12; });
     baseResults[i].plan.forEach(p=>{ bMap[p.y*12+p.m]=p.principal*(p.rate/100)/12; });
-    res.plan.forEach(p=>{
-      const bi=bMap[p.y*12+p.m]; if(bi==null) return;
-      const d=bi - p.principal*(p.rate/100)/12;
-      if(Math.abs(d)>0.005) intDiffByT[p.y*12+p.m]=(intDiffByT[p.y*12+p.m]||0)+d;   /* 不逐月取整，避免舍入累积漂移 */
+    /* 从基线侧逐月遍历：提前还款结清贷款后，基线仍在付的利息也全部计入节省 */
+    let acc=0; const savedMap={};
+    Object.keys(bMap).map(Number).sort((a,b)=>a-b).forEach(t=>{
+      const d=bMap[t]-(cMap[t]||0);
+      if(Math.abs(d)>0.005){ intDiffByT[t]=(intDiffByT[t]||0)+d; acc+=d; }   /* 不逐月取整，避免舍入累积漂移 */
+      savedMap[t]=acc;
     });
+    res.savedMap=savedMap;
+    res.savedAll=round2(acc);
   });
   const savedTotal=round2(Object.keys(intDiffByT).reduce((s,k)=>s+intDiffByT[k],0));
   /* 合并月供：某月「还贷」= 所有贷款该月月供之和 */
@@ -2383,7 +2388,7 @@ applyIncBarOpen();
 applyDepBarOpen();
 
 /* 版本标识：发布新版本时改这里，设置页底部可见，便于确认“是否已更新到最新页面” */
-const APP_VER='v80';
+const APP_VER='v81';
 function renderAppVer(){
   const el=$('appVer'); if(!el) return;
   const t=curYM(), y=Math.floor((t-1)/12), m=(t-1)%12+1;
@@ -2666,10 +2671,11 @@ function renderLoan(){
         <label>年利率<input class="edit-in loan-in" data-lid="${lid}" data-f="rateNow" inputmode="decimal" value="${curRatePct}"><i>%</i></label>
         <button class="btn-mini" data-rate-apply="${lid}" title="把本贷款项目本期之后的各期年利率统一改为输入值">修改</button>
       </div>
-      <div class="stat3">
+      <div class="stat3" style="grid-template-columns:1fr 1fr 1fr 1fr">
         <div><div class="l">初始本金</div><div class="v num">${money(L.total)}</div></div>
         <div><div class="l">已还本金</div><div class="v num mint" title="${asOf}（每月 ${+L.startD||LOAN_PAYDAY} 日还款）">${money(repaid)}</div></div>
         <div><div class="l">已提前还款</div><div class="v num gold" title="已发生的提前还款合计 · ${asOf}">${prePaid>0?money(prePaid):'¥0'}</div></div>
+        <div><div class="l">累计省息</div><div class="v num mint" title="全部提前还款合计节省的利息 = 不提前还款的总利息 − 提前还款后的总利息">${r.savedAll>0.005?'¥'+fmt(r.savedAll,0):'¥0'}</div></div>
       </div>
       <div class="loan-ops">
         <button class="btn-mini method-btn" data-method="${lid}" title="点击切换还款方式：等额本息 ⇄ 等额本金（整个还款明细按新方式重算，首期起生效）">${(L.method==='axbj')?'等额本金':'等额本息'}</button>
@@ -2681,12 +2687,12 @@ function renderLoan(){
       <div class="tbl-wrap">
         <div class="tbl-scroll plan-scroll" data-lid="${lid}">
           <table class="sheet loan">
-            <colgroup><col style="width:13%"><col style="width:22%"><col style="width:10%"><col style="width:12%"><col style="width:16%"><col style="width:16%"><col style="width:11%"></colgroup>
-            <thead><tr><th class="c-yr">年.月</th><th>剩余本金<span style="display:block;font-weight:400;font-size:9px">还款前</span></th><th>剩余<br>月份</th><th>年利率</th><th>提前还款<br>金额</th><th>月供</th><th>方式</th></tr></thead>
+            <thead><tr><th class="c-yr">年.月</th><th>剩余本金<span style="display:block;font-weight:400;font-size:9px">还款前</span></th><th>剩余<br>月份</th><th>年利率</th><th>提前还款<br>金额</th><th>月供</th><th title="截至该期，这笔贷款因提前还款已节省的利息（结清后按基线利息继续累计）">累计<br>省息</th><th>方式</th></tr></thead>
             <tbody>${rows.map(p=>{
               const isCur=curRow&&p.key===curRow.key;
               const isSettle=p.key===settleKey;
               const dead=p.principalBefore<=0.005;      /* 已结清后的名义期数：灰显，可用「减一期」删掉 */
+              const sv=r.savedMap? (r.savedMap[p.y*12+p.m]||0) : 0;
               return `<tr class="${p.prepay>0?'hi':''}${dead?' settled':''}">
                 <td class="c-yr">${String(p.y).slice(2)}.${String(p.m).padStart(2,'0')}${isCur?'<span class="now-tag">本期</span>':(isSettle?'<span class="now-tag" style="background:var(--ok,#2e9e6b)">结清</span>':'')}</td>
                 <td class="${isCur?'edit':''}" ${isCur?`data-key="${p.key}" data-lid="${lid}" data-t="principal" title="录本期的实际剩余本金（还款前）"`:''}>${fmt(p.principalBefore,2)}</td>
@@ -2694,6 +2700,7 @@ function renderLoan(){
                 <td class="${isCur?'edit rate-c':''}" ${isCur?`data-key="${p.key}" data-lid="${lid}" data-t="rate" title="点击手动修改本期的年利率（只改本期）"`:''}>${(p.rate*100).toFixed(3)}%</td>
                 <td class="${p.prepay>0?'gold':''}" title="在存钱计划页「提前还款」列填写后分配">${fmt(p.prepay,2)}</td>
                 <td title="月供由剩余本金、剩余期数与年利率按银行等额本息口径自动推算，不可修改；提前还款按按日计息口径处理，可在卡片上设置提前还款日">${fmt(p.payment,2)}</td>
+                <td class="c-ro" title="截至该期已节省的利息">${sv>0.005?fmt(sv,0):'—'}</td>
                 ${(p.y*12+p.m)>=curYM()
                   ? `<td class="mode-c${(p.prepay>0||isCur)?'':' dim'}" data-key="${p.key}" data-lid="${lid}" title="点击切换：减少月供 ⇄ 缩短年限${isCur?'（本期也可调，影响本期提前还款的处理方式）':'（提前还款月生效）'}">${p.mode==='term'?'年限':'月供'}</td>`
                   : `<td class="c-ro">—</td>`}
@@ -2840,8 +2847,10 @@ function beginCellEdit(td){
   const initStr = isZeroDash?'0':String(v==null?0:round2(v));
   td.innerHTML=`<input class="cell" type="number" inputmode="decimal" value="${initStr}">`;
   const inp=td.querySelector('input');
-  /* 编辑框宽度跟随内容长度：数字长框就宽，不再固定 88px 截断 */
-  inp.style.width=Math.max(64,Math.min(240,26+initStr.length*10))+'px';
+  /* 编辑框宽度跟随内容长度：数字长框就宽，不再固定 88px 截断；输入过程中实时变宽 */
+  const fitCell=()=>{ inp.style.width=Math.max(64,Math.min(240,26+String(inp.value).length*10))+'px'; };
+  fitCell();
+  inp.addEventListener('input',fitCell);
   inp.focus(); inp.select();
   /* 手机上键盘弹起会盖住正在编辑的格子：稍等键盘动画后把输入框滚到屏幕中央 */
   setTimeout(()=>{ try{ inp.scrollIntoView({block:'center',behavior:'smooth'}); }catch(e){} },350);
@@ -2877,7 +2886,9 @@ function beginPlanEdit(td){
   td.classList.add('editing');
   td.innerHTML=`<input class="cell" type="number" inputmode="decimal" style="min-width:80px" value="${v}" step="0.001">`;
   const inp=td.querySelector('input');
-  inp.style.width=Math.max(80,Math.min(240,26+String(v).length*10))+'px';
+  const fitCell=()=>{ inp.style.width=Math.max(80,Math.min(240,26+String(inp.value).length*10))+'px'; };
+  fitCell();
+  inp.addEventListener('input',fitCell);
   inp.focus(); inp.select();
   setTimeout(()=>{ try{ inp.scrollIntoView({block:'center',behavior:'smooth'}); }catch(e){} },350);
   let done=false;
