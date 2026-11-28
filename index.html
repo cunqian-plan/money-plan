@@ -1138,7 +1138,7 @@
         </div>
         <div style="margin:2px 0 8px"><button class="btn-mini" id="btnDepPast">＋ 增加往期定期</button></div>
         <div id="depList"><div style="font-size:11.5px;color:var(--ink-3);padding:2px 0 6px">暂无自动定期。</div></div>
-        <div style="font-size:10.5px;color:var(--ink-3);margin-top:6px">明细由系统按存钱计划页各月「月底结余」自动生成并随其变动：每期金额为 5000 的整倍数且 ≥5000；每个月的月底结余 − 有效期内定期总额 ≥ 活期预留；相邻两个月都算出 5000 时自动合并到后面那个月一起存。本期存入的一笔可手动改金额（任意金额、含 0）后点「锁定」固定，后续月份自动跟着调整；锁定或过了存入月份的定期自动锁定、不可解锁，只能「支取」；默认利率只影响未锁定的各期，改后未锁定明细自动变。现实里已存过的往期定期用「＋ 增加往期定期」手动补录（存入时间只能选本期之前，补录后视为已锁定、可支取）。</div>
+        <div style="font-size:10.5px;color:var(--ink-3);margin-top:6px">明细由系统按存钱计划页各月「月底结余」自动生成并随其变动：每期金额为 5000 的整倍数且 ≥5000；每个月的月底结余 − 有效期内定期总额 ≥ 活期预留；相邻两个月都算出 5000 时自动合并到后面那个月一起存。本期存入的一笔可手动改金额（任意金额、含 0）、存期（年）和利率%（如默认 3 年可改 1 年、2 年等），改后本期之后的明细联动自动重算，点「锁定」固定；锁定或过了存入月份的定期自动锁定、不可解锁，只能「支取」；默认利率只影响未锁定的各期，改后未锁定明细自动变。现实里已存过的往期定期用「＋ 增加往期定期」手动补录（存入时间只能选本期之前，补录后视为已锁定、可支取）。</div>
       </div>
     </div>
     <div class="card" id="cardFinance">
@@ -2180,7 +2180,7 @@ applyIncBarOpen();
 applyDepBarOpen();
 
 /* 版本标识：发布新版本时改这里，设置页底部可见，便于确认“是否已更新到最新页面” */
-const APP_VER='v74';
+const APP_VER='v75';
 function renderAppVer(){
   const el=$('appVer'); if(!el) return;
   const t=curYM(), y=Math.floor((t-1)/12), m=(t-1)%12+1;
@@ -5439,20 +5439,34 @@ function generateAutoDeps(rows){
   const locks=depLocksArr();
   const lockFroms={}; locks.forEach(d=>{ const ft=depFromT(d); if(ft!=null) lockFroms[ft]=1; });
   const manual=(store.depManual && store.depManual.ym!=null)? store.depManual : null;
-  /* 容量计算时的占用 = 已锁定的定期（按支取后金额） + 本轮已排入的生成项 */
+  const clampY=v=>Math.max(0.5,Math.min(10,Math.round((+v||0)*10)/10)||cfg.years);
+  const effY=m=>(m&&m.years!=null)? clampY(m.years) : cfg.years;   /* 本期覆盖存期优先，否则用默认 */
+  const effR=m=>(m&&m.rate!=null)? round2(Math.max(0,+m.rate||0)) : cfg.rate;  /* 本期覆盖利率优先 */
+  /* 容量计算时的占用 = 已锁定的定期（按支取后金额） + 本轮已排入的生成项（按各自存期） */
   const lockedAt=t=>{
     let v=0;
     locks.forEach(d=>{ const ft=depFromT(d), dt=depDueT(d);
       if(ft!=null && t>ft && (dt==null || t<=dt)) v+=depOccAt(d,t); });
-    list.forEach(d=>{ if(t>=d.from && t<=d.from+N) v+=d.amt; });
+    list.forEach(d=>{ const nn=Math.round(effY(d)*12);
+      if(t>=d.from && t<=d.from+nn) v+=d.amt; });
     return v;
   };
   for(let t=nowT;t<=maxT;t++){
     if(endOf[t]==null) continue;
     if(lockFroms[t]) continue;                    /* 该月已有一笔锁定的定期，不再自动生成 */
-    if(manual && manual.ym===t){                  /* 本期手动金额优先：任意金额，0 = 本月不存 */
-      const a=round2(+manual.amt||0);
-      if(a>0) list.push({from:t,amt:a,manual:true});
+    if(manual && manual.ym===t){                  /* 本期手动覆盖：金额（0=本月不存）/存期/利率 */
+      const my=effY(manual), mr=effR(manual), Nm=Math.round(my*12);
+      let a;
+      if(manual.amt!=null){ a=round2(+manual.amt||0); }
+      else{                                       /* 金额没填则按覆盖后的存期自动计算 */
+        let cap=Infinity;
+        for(let u=t;u<=Math.min(t+Nm,maxT);u++){
+          if(endOf[u]==null) continue;
+          cap=Math.min(cap, endOf[u]-keep-lockedAt(u));
+        }
+        a=Math.floor(cap/unit)*unit;
+      }
+      if(a>0) list.push({from:t,amt:a,years:my,rate:mr,manual:true});
       continue;
     }
     let cap=Infinity;
@@ -5473,7 +5487,10 @@ function generateAutoDeps(rows){
       }
     }
   }
-  return list.map(d=>({amt:d.amt,rate:cfg.rate,years:cfg.years,from:ymFull(d.from),due:ymFull(d.from+N)}));
+  return list.map(d=>{
+    const yy=effY(d), nn=Math.round(yy*12);
+    return {amt:d.amt,rate:effR(d),years:yy,from:ymFull(d.from),due:ymFull(d.from+nn)};
+  });
 }
 /* 跨月自动锁定：手动金额 / 上一轮生成的定期，存入月份已过本期时自动转为锁定记录（不可解锁） */
 function autoLockDeps(){
@@ -5482,8 +5499,10 @@ function autoLockDeps(){
   const locks=depLocksArr();
   const man=store.depManual;
   if(man && man.ym!=null && man.ym<nowT){
+    const my=(man.years!=null)?Math.max(0.5,Math.min(10,Math.round((+man.years)*10)/10)):cfg.years;
+    const mr=(man.rate!=null)?round2(Math.max(0,+man.rate||0)):cfg.rate;
     if((+man.amt||0)>0 && !locks.some(x=>x.from===ymFull(man.ym)))
-      locks.push({from:ymFull(man.ym), amt:round2(+man.amt||0), rate:cfg.rate, years:cfg.years, due:ymFull(man.ym+N)});
+      locks.push({from:ymFull(man.ym), amt:round2(+man.amt||0), rate:mr, years:my, due:ymFull(man.ym+Math.round(my*12))});
     store.depManual=null; changed=true;
   }
   const log=Array.isArray(store.depGenLog)?store.depGenLog:[];
@@ -5535,17 +5554,30 @@ function renderDepList(){
   let list=depList();
   /* 本期手动金额为 0（本月不存定期）时，补一行可编辑的占位行 */
   const man=store.depManual;
-  if(man && man.ym===nowT && !(+man.amt>0) && !list.some(d=>depFromT(d)===nowT && !d._lk))
-    list=[{from:ymFull(nowT), amt:0, rate:cfg.rate, years:cfg.years, due:ymFull(nowT+N)}].concat(list);
+  if(man && man.ym===nowT && !(+man.amt>0) && !list.some(d=>depFromT(d)===nowT && !d._lk)){
+    const zy=(man.years!=null)?Math.max(0.5,Math.min(10,Math.round((+man.years)*10)/10)):cfg.years;
+    const zr=(man.rate!=null)?round2(Math.max(0,+man.rate||0)):cfg.rate;
+    list=[{from:ymFull(nowT), amt:0, rate:zr, years:zy, due:ymFull(nowT+Math.round(zy*12))}].concat(list);
+  }
   if(!list.length){
     host.innerHTML='<div style="font-size:11.5px;color:var(--ink-3);padding:2px 0 6px">暂无可存的定期：把「活期预留」调小，或存钱计划页的月底结余更高后会自动生成。</div>';
     return;
   }
   host.innerHTML=list.map(d=>{
     const ft=depFromT(d), isCur=(ft===nowT);
-    const amtHtml = (!d._lk && isCur)
-      ? '<input class="edit-in dep-amt-in" data-from="'+esc(d.from||'')+'" inputmode="decimal" value="'+(+d.amt||0)+'" style="width:72px;height:22px;font-size:12.5px;text-align:center;border:none;border-bottom:1px solid #e3e9f2;font-weight:600;color:#b8860b">'
+    const editable=(!d._lk && isCur);
+    const man=store.depManual;
+    const manY=(man&&man.ym===ft&&man.years!=null)?man.years:null;
+    const manR=(man&&man.ym===ft&&man.rate!=null)?man.rate:null;
+    const amtHtml = editable
+      ? '<input class="edit-in dep-amt-in" data-from="'+esc(d.from||'')+'" inputmode="decimal" value="'+((man&&man.ym===ft&&man.amt!=null)?(+man.amt||0):(+d.amt||0))+'" style="width:72px;height:22px;font-size:12.5px;text-align:center;border:none;border-bottom:1px solid #e3e9f2;font-weight:600;color:#b8860b">'
       : '<b class="num" style="color:#d99f1f">¥'+fmt(+d.amt||0,0)+'</b>';
+    const yrsHtml = editable
+      ? '<input class="edit-in dep-yrs-in" data-from="'+esc(d.from||'')+'" inputmode="decimal" value="'+(manY!=null?manY:(+d.years||0))+'" style="width:36px;height:22px;font-size:12.5px;text-align:center;border:none;border-bottom:1px solid #e3e9f2;font-weight:600;color:#b8860b">'
+      : '<b class="num">'+(+d.years||0)+'</b>';
+    const rateHtml = editable
+      ? '<input class="edit-in dep-rate-in" data-from="'+esc(d.from||'')+'" inputmode="decimal" value="'+(manR!=null?manR:(+d.rate||0))+'" style="width:40px;height:22px;font-size:12.5px;text-align:center;border:none;border-bottom:1px solid #e3e9f2;font-weight:600;color:#b8860b">'
+      : '<b class="num">'+(+d.rate||0)+'%</b>';
     let act='';
     if(d._lk) act='<button class="btn-mini dep-wd" data-id="'+esc(d.id||'')+'">支取</button>';
     else if(isCur) act='<button class="btn-mini primary dep-lock" data-from="'+esc(d.from||'')+'">锁定</button>';
@@ -5555,8 +5587,8 @@ function renderDepList(){
     return '<div class="dep-auto'+(d._lk?' dep-lk':'')+'">'
       +'<span class="da-f">存入 <b class="num">'+esc(d.from||'—')+'</b></span>'
       +'<span class="da-f">金额 '+amtHtml+'</span>'
-      +'<span class="da-f">'+(+d.years||0)+' 年</span>'
-      +'<span class="da-f">利率 '+(+d.rate||0)+'%</span>'
+      +'<span class="da-f">存期(年) '+yrsHtml+'</span>'
+      +'<span class="da-f">利率% '+rateHtml+'</span>'
       +'<span class="da-f">到期 <b class="num">'+esc(d.due||'—')+'</b></span>'
       +'<span class="da-f">到期收益 <b class="num" style="color:#0f8a6d">¥'+fmt(depGain(d),0)+'</b></span>'
       +wd+'<span style="flex:1"></span>'+badge+act
@@ -5586,15 +5618,33 @@ $('depCfgRow').addEventListener('focusout',e=>{
 });
 /* ---- 定期明细操作：本期手动改金额 / 锁定 / 支取 ---- */
 $('depList').addEventListener('focusout',e=>{
-  const inp=e.target.closest('.dep-amt-in'); if(!inp) return;
+  const inp=e.target.closest('.dep-amt-in,.dep-yrs-in,.dep-rate-in'); if(!inp) return;
   const ft=depFromT({from:inp.dataset.from}); if(ft==null) return;
+  const cfg=depCfg();
+  const isAmt=inp.classList.contains('dep-amt-in');
+  const isYrs=inp.classList.contains('dep-yrs-in');
   const raw=String(inp.value).trim();
-  if(raw===''){                        /* 清空 = 恢复自动计算 */
-    if(store.depManual && store.depManual.ym===ft){ store.depManual=null; saveStore(); refreshPlanAfterDep(); updateCashYield(); renderDepList(); }
+  let man=(store.depManual && store.depManual.ym===ft)? store.depManual : null;
+  if(raw===''){                        /* 清空 = 该字段恢复默认 */
+    if(man){
+      if(isAmt) man.amt=null;
+      else if(isYrs) man.years=null;
+      else man.rate=null;
+      if(man.amt==null && man.years==null && man.rate==null) store.depManual=null;
+    }
+    saveStore(); refreshPlanAfterDep(); updateCashYield(); renderDepList();
     return;
   }
-  const v=round2(Math.max(0,parseFloat(raw.replace(/[^\d.]/g,''))||0));
-  store.depManual={ym:ft, amt:v};
+  const num=parseFloat(raw.replace(/[^\d.]/g,''))||0;
+  let v;
+  if(isAmt) v=round2(Math.max(0,num));
+  else if(isYrs) v=Math.max(0.5,Math.min(10,Math.round(num*10)/10));
+  else v=round2(Math.max(0,num));
+  if(!man) man={ym:ft, amt:null, years:null, rate:null};
+  if(isAmt) man.amt=v;
+  else if(isYrs) man.years=v;
+  else man.rate=v;
+  store.depManual=man;
   inp.value=String(v);
   saveStore(); refreshPlanAfterDep(); updateCashYield(); renderDepList();
 });
@@ -5602,12 +5652,20 @@ $('depList').addEventListener('click',e=>{
   const lk=e.target.closest('.dep-lock');
   if(lk && !lk.disabled){
     const from=lk.dataset.from, ft=depFromT({from}); if(ft==null) return;
-    const inp=$('depList').querySelector('.dep-amt-in[data-from="'+from+'"]');
-    const amt=inp? round2(Math.max(0,parseFloat(String(inp.value).replace(/[^\d.]/g,''))||0)) : 0;
-    if(!confirm('锁定后这期定期金额不可再改、也不可解锁，确认锁定 '+from+' 存入 ¥'+fmt(amt,2)+' ？')) return;
-    const cfg=depCfg(), N=Math.round(cfg.years*12);
+    const cfg=depCfg();
+    const man=(store.depManual && store.depManual.ym===ft)? store.depManual : null;
+    const cur=depList().find(d=>depFromT(d)===ft&&!d._lk);
+    const inpA=$('depList').querySelector('.dep-amt-in[data-from="'+from+'"]');
+    const inpY=$('depList').querySelector('.dep-yrs-in[data-from="'+from+'"]');
+    const inpR=$('depList').querySelector('.dep-rate-in[data-from="'+from+'"]');
+    const gv=(el,fallback)=> (el && String(el.value).trim()!=='') ? parseFloat(String(el.value).replace(/[^\d.]/g,'')) : fallback;
+    const amt=round2(Math.max(0, gv(inpA, (man&&man.amt!=null)?+man.amt||0 : (cur?+cur.amt||0:0)) ||0));
+    const yrs=Math.max(0.5,Math.min(10,Math.round((gv(inpY,(man&&man.years!=null)?+man.years:cfg.years)||0)*10)/10)||cfg.years);
+    const rt=round2(Math.max(0, gv(inpR,(man&&man.rate!=null)?+man.rate||0 : cfg.rate) ||0));
+    const NN=Math.round(yrs*12);
+    if(!confirm('锁定后这期定期的金额/存期/利率不可再改、也不可解锁，确认锁定 '+from+' 存入 ¥'+fmt(amt,2)+'（'+yrs+' 年 · 利率 '+rt+'%）？')) return;
     store.depIdSeq=(+store.depIdSeq||0)+1;
-    depLocksArr().push({id:'dl'+store.depIdSeq, from, amt, rate:cfg.rate, years:cfg.years, due:ymFull(ft+N)});
+    depLocksArr().push({id:'dl'+store.depIdSeq, from, amt, rate:rt, years:yrs, due:ymFull(ft+NN)});
     if(store.depManual && store.depManual.ym===ft) store.depManual=null;
     saveStore(); refreshPlanAfterDep(); updateCashYield(); renderDepList();
     toast('已锁定 '+from+' 的定期存款');
