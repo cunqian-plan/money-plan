@@ -670,9 +670,8 @@
             <th class="c-prev">上月<br>结余</th><th>生活<br>支出</th><th>其他<br>支出</th><th>还贷</th>
             <th>工资</th><th>收益</th><th>其他<br>收入</th><th>提前<br>还款</th>            <th>公积金</th><th class="c-end">月底<br>结余</th>
             <th title="上月结余 ÷（当月还贷 + 「消费项」里每月生活支出合计 + 500 元备用金）">可维持<br>月数</th>
-            <th title="截至该月，因提前还款已节省的贷款利息合计（原计划利息 − 提前还款后利息）">累计<br>省息</th>
           </tr></thead>
-          <tbody id="monBody"><tr><td colspan="13" style="text-align:center;color:var(--ink-3);padding:26px 0">该年暂无记录，点下方按钮新增</td></tr></tbody>
+          <tbody id="monBody"><tr><td colspan="12" style="text-align:center;color:var(--ink-3);padding:26px 0">该年暂无记录，点下方按钮新增</td></tr></tbody>
         </table>
       </div>
       <div class="addbtns"><button class="btn-mini primary" id="btnAddMonth">＋ 新增一年</button><button class="btn-mini primary" id="btnAdd5Year" style="background:#3d6db3">＋ 新增五年</button><button class="btn-mini" id="btnDelYear">－ 减少一年</button><button class="btn-mini lock-on" id="btnEditLock">🔒 已锁定</button><button class="btn-mini" id="btnLongImg">长图分享</button></div>
@@ -2100,27 +2099,39 @@ function compute(){
   const nyT=Math.max(nowYM(), rows.length? rows[0].year*12+rows[0].month : nowYM());
   const ctx={edits, byKey, allocOf, nyT};
   const results=loans.map((L,i)=>Object.assign({loan:L}, loanPlanOf(L,ctx,i)));
-  /* 提前还款节省利息：每笔贷款按「完全不提前还款」重跑一遍基线计划，
-     逐月对比利息差（利息≈当期还款前本金×月利率，两边用同一利率规则，只差本金）。
-     截至某月的累计利息差＝「到该月为止因提前还款已节省的利息」 */
-  const baseCtx={edits, byKey, allocOf:()=>loans.map(()=>0), nyT};
-  const baseResults=loans.map((L,i)=>loanPlanOf(L,baseCtx,i));
-  const intDiffByT={};
+  /* 提前还款省息：按「每一笔」归因——某笔提前还款在全周期省下的利息，全部记到它发生的那个月份，
+     没有提前还款的月份不显示。做法：对每个贷款从「完全不提前还款」的基线开始，
+     按时间顺序逐笔加入提前还款，每加入一笔就重算一次全周期总利息，
+     加入前后的利息差＝这一笔的省息（边际贡献），各笔相加＝总省息，不重复、不遗漏。
+     利息口径：当期还款前本金 × 年利率(小数) ÷ 12，不逐月取整以避免舍入漂移。 */
+  const interestOf = plan => plan.reduce((s,p)=> s + p.principal*p.rate/12, 0);
   results.forEach((res,i)=>{
-    const cMap={}, bMap={};
-    res.plan.forEach(p=>{ cMap[p.y*12+p.m]=p.principal*(p.rate/100)/12; });
-    baseResults[i].plan.forEach(p=>{ bMap[p.y*12+p.m]=p.principal*(p.rate/100)/12; });
-    /* 从基线侧逐月遍历：提前还款结清贷款后，基线仍在付的利息也全部计入节省 */
-    let acc=0; const savedMap={};
-    Object.keys(bMap).map(Number).sort((a,b)=>a-b).forEach(t=>{
-      const d=bMap[t]-(cMap[t]||0);
-      if(Math.abs(d)>0.005){ intDiffByT[t]=(intDiffByT[t]||0)+d; acc+=d; }   /* 不逐月取整，避免舍入累积漂移 */
-      savedMap[t]=acc;
-    });
-    res.savedMap=savedMap;
-    res.savedAll=round2(acc);
+    const L=res.loan;
+    const ppMonths=[];
+    res.plan.forEach(p=>{ if(p.prepay>0.005) ppMonths.push(p.y*12+p.m); });
+    ppMonths.sort((a,b)=>a-b);
+    const savedByMonth={};
+    if(ppMonths.length){
+      const allowed=new Set();
+      const ctxOf=(set)=>({edits, byKey, allocOf:(key)=>{
+        const parts=key.split('-'), yy=+parts[0], mm=+parts[1];
+        const arr=loans.map(()=>0);
+        if(set.has(yy*12+mm)) arr[i]=allocOf(key)[i];
+        return arr;
+      }, nyT});
+      let prevInt=interestOf(loanPlanOf(L, ctxOf(allowed), i).plan);   /* 基线：无任何提前还款 */
+      ppMonths.forEach(t=>{
+        allowed.add(t);
+        const nowInt=interestOf(loanPlanOf(L, ctxOf(allowed), i).plan);
+        const d=prevInt-nowInt;
+        if(d>0.005) savedByMonth[t]=(savedByMonth[t]||0)+d;
+        prevInt=nowInt;
+      });
+    }
+    res.savedByMonth=savedByMonth;
+    res.savedAll=round2(Object.values(savedByMonth).reduce((s,x)=>s+x,0));
   });
-  const savedTotal=round2(Object.keys(intDiffByT).reduce((s,k)=>s+intDiffByT[k],0));
+  const savedTotal=round2(results.reduce((s,r)=>s+r.savedAll,0));
   /* 合并月供：某月「还贷」= 所有贷款该月月供之和 */
   const payMap={};
   results.forEach(r=>{ Object.keys(r.payMap).forEach(t=>{ payMap[t]=(payMap[t]||0)+r.payMap[t]; }); });
@@ -2129,11 +2140,8 @@ function compute(){
   const prevAct = store.prevEdits||{};
   const baseFirst = BASE_ROWS.length ? BASE_ROWS[0].year*12+BASE_ROWS[0].month : null;
   let prev = (store.start!=null)? +store.start : (store.wiped? 0 : DEFAULT_START);
-  let savedAcc=0;   /* 累计省息游标（不逐月取整，显示时再取整） */
   rows.forEach(r=>{
     const key=r.year+'-'+r.month, t=r.year*12+r.month;
-    savedAcc+=(intDiffByT[t]||0);
-    r.intSaved=round2(savedAcc);
     /* 还贷 = 各贷款「对应年月」的月供之和；已删除贷款的历史月份用删除当时的快照，数值不变 */
     /* 还贷 = 各贷款「对应年月」的月供之和；已删除贷款的历史月份用删除当时的快照，数值不变；
        本期还贷列支持手动录入实际值（loanRec），录入后优先于计算值 */
@@ -2389,7 +2397,7 @@ applyIncBarOpen();
 applyDepBarOpen();
 
 /* 版本标识：发布新版本时改这里，设置页底部可见，便于确认“是否已更新到最新页面” */
-const APP_VER='v83';
+const APP_VER='v85';
 function renderAppVer(){
   const el=$('appVer'); if(!el) return;
   const t=curYM(), y=Math.floor((t-1)/12), m=(t-1)%12+1;
@@ -2572,7 +2580,7 @@ function renderTable(){
   };
   const ny=curYM();
   const body=$('monBody');
-  if(!rows.length){ body.innerHTML='<tr><td colspan="13" style="text-align:center;color:var(--ink-3);padding:26px 0">该年暂无记录，点下方按钮新增</td></tr>'; fillSum(); return; }
+  if(!rows.length){ body.innerHTML='<tr><td colspan="12" style="text-align:center;color:var(--ink-3);padding:26px 0">该年暂无记录，点下方按钮新增</td></tr>'; fillSum(); return; }
   const groups=[];
   rows.forEach(r=>{ const g=groups[groups.length-1]; if(g&&g.year===r.year) g.rows.push(r); else groups.push({year:r.year,rows:[r]}); });
   const firstKey=S.rows[0] ? S.rows[0].year+'-'+S.rows[0].month : null;
@@ -2604,7 +2612,6 @@ function renderTable(){
       html += `<td class="edit" data-key="${key}" data-f="fund">${fmtT(r.fund,0)}</td>`;
       html += `<td class="c-end ${netR?'neg':''}">${fmtT(r.end,0)}</td>`;
       html += `<td class="c-ro">${r.keep!=null?fmtT(r.keep,1):'—'}</td>`;
-      html += `<td class="c-ro" title="截至该月已节省的贷款利息">${r.intSaved>0.005?fmtT(r.intSaved,0):'—'}</td>`;
       html += `</tr>`;
     });
   });
@@ -2688,12 +2695,12 @@ function renderLoan(){
       <div class="tbl-wrap">
         <div class="tbl-scroll plan-scroll" data-lid="${lid}">
           <table class="sheet loan">
-            <thead><tr><th class="c-yr">年.月</th><th>剩余本金<span style="display:block;font-weight:400;font-size:9px">还款前</span></th><th>剩余<br>月份</th><th>年利率</th><th>提前还款<br>金额</th><th>月供</th><th title="截至该期，这笔贷款因提前还款已节省的利息（结清后按基线利息继续累计）">累计<br>省息</th><th>方式</th></tr></thead>
+            <thead><tr><th class="c-yr">年.月</th><th>剩余本金<span style="display:block;font-weight:400;font-size:9px">还款前</span></th><th>剩余<br>月份</th><th>年利率</th><th>提前还款<br>金额</th><th>月供</th><th title="该月提前还款在整个剩余周期节省的利息，一次性记在提前还款当月；没提前还款的月份显示 —">本期提前还款<br>节省利息</th><th>方式</th></tr></thead>
             <tbody>${rows.map(p=>{
               const isCur=curRow&&p.key===curRow.key;
               const isSettle=p.key===settleKey;
               const dead=p.principalBefore<=0.005;      /* 已结清后的名义期数：灰显，可用「减一期」删掉 */
-              const sv=r.savedMap? (r.savedMap[p.y*12+p.m]||0) : 0;
+              const sv=r.savedByMonth? (r.savedByMonth[p.y*12+p.m]||0) : 0;
               return `<tr class="${p.prepay>0?'hi':''}${dead?' settled':''}">
                 <td class="c-yr">${String(p.y).slice(2)}.${String(p.m).padStart(2,'0')}${isCur?'<span class="now-tag">本期</span>':(isSettle?'<span class="now-tag" style="background:var(--ok,#2e9e6b)">结清</span>':'')}</td>
                 <td class="${isCur?'edit':''}" ${isCur?`data-key="${p.key}" data-lid="${lid}" data-t="principal" title="录本期的实际剩余本金（还款前）"`:''}>${fmt(p.principalBefore,2)}</td>
@@ -2701,7 +2708,7 @@ function renderLoan(){
                 <td class="${isCur?'edit rate-c':''}" ${isCur?`data-key="${p.key}" data-lid="${lid}" data-t="rate" title="点击手动修改本期的年利率（只改本期）"`:''}>${(p.rate*100).toFixed(3)}%</td>
                 <td class="${p.prepay>0?'gold':''}" title="在存钱计划页「提前还款」列填写后分配">${fmt(p.prepay,2)}</td>
                 <td title="月供由剩余本金、剩余期数与年利率按银行等额本息口径自动推算，不可修改；提前还款按按日计息口径处理，可在卡片上设置提前还款日">${fmt(p.payment,2)}</td>
-                <td class="c-ro" title="截至该期已节省的利息">${sv>0.005?fmt(sv,0):'—'}</td>
+                <td class="c-ro" title="本月提前还款在全周期节省的利息（仅在有提前还款的月份显示）">${sv>0.005?fmt(sv,0):'—'}</td>
                 ${(p.y*12+p.m)>=curYM()
                   ? `<td class="mode-c${(p.prepay>0||isCur)?'':' dim'}" data-key="${p.key}" data-lid="${lid}" title="点击切换：减少月供 ⇄ 缩短年限${isCur?'（本期也可调，影响本期提前还款的处理方式）':'（提前还款月生效）'}">${p.mode==='term'?'年限':'月供'}</td>`
                   : `<td class="c-ro">—</td>`}
@@ -3670,8 +3677,7 @@ const EXP_COLS=[
   ['提前还款', r=>r.prepay||0],
   ['公积金',   r=>r.fund],
   ['月底结余', r=>r.end],
-  ['可维持月数', r=>r.keep!=null?r.keep:''],
-  ['累计省息', r=>r.intSaved||0]
+  ['可维持月数', r=>r.keep!=null?r.keep:'']
 ];
 function dlFile(name,mime,content){
   const blob=new Blob([content],{type:mime});
@@ -3715,8 +3721,7 @@ $('btnLongImg').addEventListener('click',()=>{
     {t:'提前还款',w:70, v:r=>r.prepay||0, gold:r=>(r.prepay||0)>0},
     {t:'公积金',w:60, v:r=>r.fund},
     {t:'月底结余',w:78, v:r=>r.end, strong:true, neg:r=>r.end<0},
-    {t:'可维持月数',w:78, v:r=>r.keep!=null?r.keep:null, dash:r=>r.keep==null, d:1},
-    {t:'累计省息',w:70, v:r=>r.intSaved||0, dash:r=>!(r.intSaved>0.005), d:0}
+    {t:'可维持月数',w:78, v:r=>r.keep!=null?r.keep:null, dash:r=>r.keep==null, d:1}
   ];
   const W=cols.reduce((s,c)=>s+c.w,0)+24, rowH=26, headH=34, titleH=44, footH=34;
   const H=titleH+headH+rows.length*rowH+footH;
