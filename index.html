@@ -2294,7 +2294,7 @@ applyIncBarOpen();
 applyDepBarOpen();
 
 /* 版本标识：发布新版本时改这里，设置页底部可见，便于确认“是否已更新到最新页面” */
-const APP_VER='v78';
+const APP_VER='v79';
 function renderAppVer(){
   const el=$('appVer'); if(!el) return;
   const t=curYM(), y=Math.floor((t-1)/12), m=(t-1)%12+1;
@@ -2536,7 +2536,7 @@ function loanShowRowsOf(plan, L){
 function loanVisRows(L){ const r=(S.loans||[])[0]; return loanVisRowsOf(r?r.plan:S.plan, r?r.loan:null); }
 function loanById(id){ return loansArr().find(L=>L.id===id); }
 /* 贷款项目折叠状态：记在本机（默认展开） */
-let loanFold={}; try{ loanFold=JSON.parse(localStorage.getItem('loanFold')||'{}')||{}; }catch(e){ loanFold={}; }
+let loanFold={};   /* 不再记忆上次的折叠状态：刷新后每笔贷款默认折叠（1=展开） */
 function renderLoan(){
   const host=$('loanList'); if(!host) return;
   const res=S.loans||[];
@@ -2558,7 +2558,7 @@ function renderLoan(){
     const prePaid = plan.filter(p=>p.y*12+p.m<=pd).reduce((s,p)=>s+p.prepay,0);
     const pdY=Math.floor((pd-1)/12), pdM=((pd-1)%12)+1;
     const asOf='截至 '+pdY+' 年 '+pdM+' 月还款后';
-    const folded=!!loanFold[lid];
+    const folded=loanFold[lid]!==1;
     return `<div class="card loan-card${folded?' folded':''}" data-lid="${lid}">
       <div class="loan-head">
         <input class="loan-name" data-lid="${lid}" data-f="name" value="${esc(L.name||ty.n)}" placeholder="小区名 / 贷款项目" maxlength="24">
@@ -3113,11 +3113,11 @@ $('loanList').addEventListener('click',e=>{
   const fb=e.target.closest('[data-fold]');
   if(fb){
     const lid=fb.dataset.fold;
-    loanFold[lid]=loanFold[lid]?0:1;
+    loanFold[lid]=loanFold[lid]===1?0:1;
     try{ localStorage.setItem('loanFold',JSON.stringify(loanFold)); }catch(e2){}
-    const card=fb.closest('.loan-card'), on=!!loanFold[lid];
-    if(card) card.classList.toggle('folded',on);
-    const ic=fb.querySelector('i'); if(ic) ic.style.transform=on?'rotate(-90deg)':'none';
+    const card=fb.closest('.loan-card'), on=loanFold[lid]===1;   /* on=当前展开 */
+    if(card) card.classList.toggle('folded',!on);
+    const ic=fb.querySelector('i'); if(ic) ic.style.transform=on?'none':'rotate(-90deg)';
     return;
   }
   const ra=e.target.closest('[data-rate-apply]');
@@ -4061,6 +4061,13 @@ document.querySelectorAll('[data-sp-fold]').forEach(h=>{
     if(caret) caret.style.transform=open?'rotate(-90deg)':'rotate(0deg)';
   });
 });
+/* 刷新后子块一律默认折叠（与外层卡片规则一致） */
+document.querySelectorAll('[data-sp-fold]').forEach(h=>{
+  const body=h.parentNode.querySelector('[data-sp-body="'+h.dataset.spFold+'"]');
+  const caret=h.querySelector('.sp-caret');
+  if(body) body.style.display='none';
+  if(caret) caret.style.transform='rotate(-90deg)';
+});
 /* 「＋ 增加消费项 / ＋ 增加项目 / 修改」按钮：不触发折叠 */
 $('btnAddRecur').addEventListener('click',e=>{ e.stopPropagation(); if($('recurForm').style.display==='block'){ closeRecurForm(); } else openRecurForm(null); });
 $('btnAddPlan').addEventListener('click',e=>{ e.stopPropagation(); if($('planForm').style.display==='block'){ closePlanForm(); } else openPlanForm(null); });
@@ -4271,7 +4278,7 @@ function renderFloan(){
       const it=Math.max(0,rp._int||0);
       return '<div style="display:flex;justify-content:space-between;font-size:11.5px;padding:2px 0;color:'+(past?'var(--ink-3)':'var(--ink)')+'"><span>'+(k?k.replace('-','.'):'—')+(past?'（已还）':'')+'</span><b class="num">¥'+fmt(+rp.amt||0,0)+(it>0?'<span style="font-weight:400;color:var(--ink-3)">＋利息 '+fmt(it,0)+'</span>':'')+'</b></div>';
     }).join('');
-    const open=!flFold[L.id];
+    const open=!!flFold[L.id];   /* 刷新后每笔借款默认折叠，点标题展开 */
     return '<div class="fl-item">'
       +'<div class="fl-head" data-fl-fold="'+L.id+'">'
       +'<i class="fl-caret" style="transform:rotate('+(open?'0':'-90')+'deg)">▾</i>'
@@ -4414,7 +4421,7 @@ function renderRecur(){
   if(!arr.length){ host.innerHTML='<div style="font-size:12px;color:var(--ink-3);padding:4px 0">还没有周期消费，点右上「＋ 增加消费项」。</div>'; return; }
   host.innerHTML=arr.map(R=>{
     const amt=Math.max(0,+R.amount||0);
-    const open=!rcFold[R.id];
+    const open=!!rcFold[R.id];   /* 刷新后每条周期消费默认折叠 */
     const mon=normYm(R.startYm)? (+normYm(R.startYm).split('-')[1]) : null;
     const desc=R.cycle==='year'
       ? ('每年 <b>'+mon+' 月</b> 计入该月「其他支出」¥'+fmt(amt,2)+'（'+recurRangeTxt(R)+'）')
@@ -4701,7 +4708,7 @@ function renderAssets(){
       +'<span class="rem num">余 '+fmt(assetRemain(a),0)+'</span></div></div>').join('')
       || '<div class="ast-hint" style="padding:2px 0 4px">暂无，点右侧「添加」。</div>';
     const sum=A[c.k].reduce((s2,a)=>s2+assetRemain(a)*c.fold,0);
-    const open=!astFold[c.k];
+    const open=!!astFold[c.k];   /* 刷新后每个分类默认折叠 */
     return '<div class="ast-cat" data-ast-fold="'+c.k+'"><b>'+c.n+'</b><span class="ast-hint">剩余合计 '+fmt(sum,0)+' 元'+(c.k==='re'?'（总资产按 ×0.96 计）':'')+'</span>'
       +'<button class="btn-mini" data-ast-add="'+c.k+'" style="margin-left:auto">＋ 添加</button>'
       +'<i class="ast-caret" style="transform:rotate('+(open?'0':'-90')+'deg)">▾</i></div>'
@@ -4942,7 +4949,7 @@ const EXP_GROUPS=[
   {k:'life', n:'生活支出', items:['餐饮','零食','话费宽带','水电燃气','聚餐娱乐','油费','停车费','医疗','其他']},
   {k:'baby', n:'育儿',     items:['尿不湿','奶粉','玩具','教育','其他']}
 ];
-let expFold={life:false,baby:false};
+let expFold={life:true,baby:true};   /* true=折叠：刷新后默认折叠 */
 function expKeyOf(k,item){ return k+'|'+item; }
 function expVal(k,item){
   const o=store.expense||{};
@@ -6007,10 +6014,10 @@ function renderFinList(force){
   if(!force && ae && ae.closest && ae.closest('#finList')) return;   /* 正在输入：不重建，避免打断 */
   const list=finList();
   host.innerHTML = list.length ? list.map((f,i)=>`
-    <div class="fin-item${finFoldArr[i]?' folded':''}" data-i="${i}">
+    <div class="fin-item${finFoldArr[i]===1?'':' folded'}" data-i="${i}">
       <div class="fin-top">
         <input class="fin-name fin-in" data-i="${i}" data-k="name" value="${esc(f.name||'')}" placeholder="项目名，如 招银理财·朝招金" maxlength="20">
-        <button class="fin-fold" data-fold="${i}" title="点击折叠/展开"><i style="transform:${finFoldArr[i]?'rotate(-90deg)':'none'}">▾</i></button>
+        <button class="fin-fold" data-fold="${i}" title="点击折叠/展开"><i style="transform:${finFoldArr[i]===1?'none':'rotate(-90deg)'}">▾</i></button>
         <select class="fin-cycle fin-in" data-i="${i}" data-k="cycle">
           <option value="day"${(f.cycle||'day')==='day'?' selected':''}>每天结算</option>
           <option value="month"${f.cycle==='month'?' selected':''}>按月结算</option>
@@ -6033,8 +6040,8 @@ function renderFinList(force){
   if($('finSum')) $('finSum').textContent = list.length? list.length+' 项' : '';
   if($('finTotal')) $('finTotal').textContent = list.length? '当月合计 ¥'+fmt(finGain(curYM()),2) : '';
 }
-/* 理财项目折叠状态：记在本机（按列表序号，默认展开） */
-let finFoldArr=[]; try{ finFoldArr=JSON.parse(localStorage.getItem('finFold')||'[]')||[]; }catch(e){ finFoldArr=[]; }
+/* 理财项目折叠状态：不再记忆，刷新后每笔理财默认折叠（1=展开） */
+let finFoldArr=[];
 /* 按月/按年结算：到期年月 = 起投年月 + 周期（每几月/每几年），自动填入 */
 function finAutoDue(f){
   if(f.cycle!=='month' && f.cycle!=='year') return f.due||'';
@@ -6100,11 +6107,11 @@ $('finList').addEventListener('click',e=>{
   const fb=e.target.closest('.fin-fold');
   if(fb){
     const i=+fb.dataset.i;
-    finFoldArr[i]=finFoldArr[i]?0:1;
+    finFoldArr[i]=finFoldArr[i]===1?0:1;
     try{ localStorage.setItem('finFold',JSON.stringify(finFoldArr)); }catch(e2){}
-    const it=fb.closest('.fin-item'), on=!!finFoldArr[i];
-    if(it) it.classList.toggle('folded',on);
-    const ic=fb.querySelector('i'); if(ic) ic.style.transform=on?'rotate(-90deg)':'none';
+    const it=fb.closest('.fin-item'), on=finFoldArr[i]===1;   /* on=当前展开 */
+    if(it) it.classList.toggle('folded',!on);
+    const ic=fb.querySelector('i'); if(ic) ic.style.transform=on?'none':'rotate(-90deg)';
     return;
   }
   const del=e.target.closest('.fin-del'); if(!del) return;
