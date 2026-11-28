@@ -1,49 +1,77 @@
-/* 存钱计划 PWA Service Worker：离线可用 + 更新即时生效 */
-const CACHE = 'money-plan-v5';
-const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png', './icon-180.png'];
+/* 存钱计划 PWA Service Worker v6 —— 联网绝不挡路，断网回缓存，绝不让页面白屏 */
+const CACHE = 'money-plan-v6';
+const CORE = ['./index.html', './', 'manifest.json', 'icon-192.png', 'icon-512.png', 'icon-180.png'];
 
 self.addEventListener('install', e => {
-  e.waitUntil(
-    caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()).catch(() => {})
-  );
+  e.waitUntil((async () => {
+    const c = await caches.open(CACHE);
+    /* 逐个缓存，某个资源 404 也不影响其余资源 */
+    for (const u of CORE) {
+      try { await c.add(u); } catch (_) {}
+    }
+    /* 固定 key 存一份页面副本，断网导航兜底（不受相对路径解析影响） */
+    try {
+      const r = await fetch('./index.html');
+      if (r && r.ok) await c.put('page', r.clone());
+    } catch (_) {}
+    await self.skipWaiting();
+  })());
 });
 
 self.addEventListener('activate', e => {
-  e.waitUntil(
-    caches.keys()
-      .then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k))))
-      .then(() => self.clients.claim())
-  );
+  e.waitUntil((async () => {
+    const ks = await caches.keys();
+    await Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k).catch(() => {})));
+    await self.clients.claim();
+  })());
 });
 
-self.addEventListener('fetch', e => {
-  if (e.request.method !== 'GET') return;
-  const url = new URL(e.request.url);
-  if (url.origin !== location.origin) return;      /* 只管同源资源 */
+/* 断网兜底：优先固定 key 的页面副本，其次老位置，最后给友好提示而不是白屏 */
+async function offlinePage() {
+  try {
+    const c = await caches.open(CACHE);
+    for (const key of ['page', './index.html', './']) {
+      const h = await c.match(key);
+      if (h) return h;
+    }
+  } catch (_) {}
+  return new Response('当前无网络，且本机还没有可用的离线缓存。请联网打开一次本页面后即可离线使用。',
+    { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+}
 
-  /* 页面导航：网络优先（4 秒超时），断网/超时回落缓存 —— 发新版后联网刷新即更新，断网也能打开 */
-  if (e.request.mode === 'navigate') {
-    const net = fetch(e.request).then(r => {
-      const cp = r.clone();
-      caches.open(CACHE).then(c => { c.put('./', cp.clone()); c.put('./index.html', cp); });
-      return r;
-    }).catch(() => null);
-    const timeout = new Promise(res => setTimeout(() => res(null), 4000));
-    e.respondWith(
-      Promise.race([net, timeout]).then(r => {
-        if (r) return r;
-        return caches.match('./').then(h => h || caches.match('./index.html'));
-      })
-    );
+self.addEventListener('fetch', e => {
+  const req = e.request;
+  if (req.method !== 'GET') return;
+  let url;
+  try { url = new URL(req.url); } catch (_) { return; }
+  if (url.origin !== self.location.origin) return;
+
+  /* 页面导航：联网时直接走网络（不设超时、不与缓存竞速），断网才回缓存 */
+  if (req.mode === 'navigate') {
+    e.respondWith((async () => {
+      try {
+        const r = await fetch(req);
+        if (r && r.ok) {
+          caches.open(CACHE).then(c => c.put('page', r.clone())).catch(() => {});
+        }
+        return r;
+      } catch (_) {
+        return offlinePage();
+      }
+    })());
     return;
   }
 
-  /* 其他静态资源：缓存优先 */
-  e.respondWith(
-    caches.match(e.request).then(hit => hit || fetch(e.request).then(r => {
-      const cp = r.clone();
-      caches.open(CACHE).then(c => c.put(e.request, cp));
+  /* 其他静态资源：缓存优先，没有则走网络 */
+  e.respondWith((async () => {
+    const hit = await caches.match(req).catch(() => null);
+    if (hit) return hit;
+    try {
+      const r = await fetch(req);
+      if (r && r.ok) caches.open(CACHE).then(c => c.put(req, r.clone())).catch(() => {});
       return r;
-    }))
-  );
+    } catch (_) {
+      return new Response('', { status: 504 });
+    }
+  })());
 });
